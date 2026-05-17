@@ -1,8 +1,16 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/social_network';
+    const mongoUri = process.env.MONGO_URI;
+
+    if (!mongoUri) {
+      console.error('MONGO_URI is missing. Please add it to your .env file.');
+      process.exit(1);
+    }
+
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
 
     await mongoose.connect(mongoUri);
 

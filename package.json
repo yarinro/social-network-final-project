@@ -4,8 +4,9 @@
   "description": "Backend skeleton for a web-based social network final project.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node --use-system-ca server.js",
+    "dev": "node --use-system-ca node_modules/nodemon/bin/nodemon.js server.js",
+    "test:mongo": "node --use-system-ca scripts/testMongo.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
