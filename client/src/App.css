@@ -1,38 +1,90 @@
-.App {
-  text-align: center;
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background-color: #1f2937;
+  color: #ffffff;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.navbar a {
+  color: #ffffff;
+  text-decoration: none;
+  margin-right: 1rem;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.navbar a:hover {
+  text-decoration: underline;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.navbar-brand a {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-right: 0;
+}
+
+.navbar-links,
+.navbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-user {
+  margin-right: 0.5rem;
+}
+
+.navbar button {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #ef4444;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.main-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.page h1 {
+  margin-top: 0;
+}
+
+.form {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 1rem;
+  max-width: 400px;
 }
 
-.App-link {
-  color: #61dafb;
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 500;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.form input {
+  padding: 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form button {
+  padding: 0.7rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.error-message {
+  color: #dc2626;
 }
