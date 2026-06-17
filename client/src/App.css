@@ -88,3 +88,68 @@
 .error-message {
   color: #dc2626;
 }
+
+.success-message {
+  color: #16a34a;
+}
+
+.groups-section {
+  margin-bottom: 2rem;
+}
+
+.groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group-card {
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.group-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.group-card p {
+  margin: 0.4rem 0;
+}
+
+.group-status {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.join-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #16a34a;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.join-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.checkbox-label {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem !important;
+}
+
+.form textarea {
+  padding: 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}
