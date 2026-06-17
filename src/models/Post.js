@@ -2,17 +2,32 @@ const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema(
   {
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    group: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Group',
+      required: true
+    },
     content: {
       type: String,
       required: true
     },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+    imageUrl: {
+      type: String,
+      default: ''
     },
-    group: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Group'
+    videoUrl: {
+      type: String,
+      default: ''
+    },
+    visibility: {
+      type: String,
+      enum: ['public', 'group'],
+      default: 'group'
     }
   },
   {
