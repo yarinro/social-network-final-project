@@ -153,3 +153,66 @@
   font-family: inherit;
   resize: vertical;
 }
+
+.users-section {
+  margin-bottom: 2rem;
+}
+
+.users-toolbar {
+  margin-bottom: 1rem;
+}
+
+.users-toolbar input {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-card {
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.user-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.user-card p {
+  margin: 0.4rem 0;
+}
+
+.friend-button,
+.remove-friend-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.friend-button {
+  background-color: #2563eb;
+}
+
+.remove-friend-button {
+  background-color: #dc2626;
+}
+
+.friend-button:disabled,
+.remove-friend-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
