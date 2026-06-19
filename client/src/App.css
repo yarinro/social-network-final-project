@@ -119,9 +119,96 @@
   margin: 0.4rem 0;
 }
 
+.group-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.group-card-header h3 {
+  margin: 0;
+}
+
+.group-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.public-badge {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.private-badge {
+  background-color: #fce7f3;
+  color: #be185d;
+}
+
 .group-status {
   color: #2563eb;
   font-weight: 500;
+}
+
+.manager-controls {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.manager-controls h4 {
+  margin: 0 0 0.75rem 0;
+}
+
+.pending-members {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pending-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background-color: #f9fafb;
+}
+
+.pending-member-row p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.approve-button {
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #16a34a;
+  color: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.approve-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.reject-button {
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #dc2626;
+  color: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .join-button {
