@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getSocket } from '../socket';
 
 const Messages = () => {
   const { user, loading: authLoading } = useAuth();
@@ -12,6 +13,11 @@ const Messages = () => {
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const selectedFriendRef = useRef(null);
+
+  useEffect(() => {
+    selectedFriendRef.current = selectedFriend;
+  }, [selectedFriend]);
 
   useEffect(() => {
     if (!user) {
@@ -34,6 +40,50 @@ const Messages = () => {
     fetchFriends();
   }, [user]);
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const socket = getSocket();
+    socket.emit('registerUser', user._id);
+
+    const handleReceiveMessage = (message) => {
+      const friend = selectedFriendRef.current;
+
+      if (!friend) {
+        return;
+      }
+
+      const fromId = (message.from._id || message.from).toString();
+      const toId = (message.to._id || message.to).toString();
+      const myId = user._id.toString();
+      const friendId = friend._id.toString();
+
+      const isCurrentConversation =
+        (fromId === myId && toId === friendId) ||
+        (fromId === friendId && toId === myId);
+
+      if (!isCurrentConversation) {
+        return;
+      }
+
+      setConversation((prevMessages) => {
+        if (prevMessages.some((item) => item._id === message._id)) {
+          return prevMessages;
+        }
+
+        return [...prevMessages, message];
+      });
+    };
+
+    socket.on('receiveMessage', handleReceiveMessage);
+
+    return () => {
+      socket.off('receiveMessage', handleReceiveMessage);
+    };
+  }, [user]);
+
   const fetchConversation = async (friendId) => {
     try {
       setError('');
@@ -54,29 +104,35 @@ const Messages = () => {
     fetchConversation(friend._id);
   };
 
-  const handleSendMessage = async (event) => {
+  const handleSendMessage = (event) => {
     event.preventDefault();
 
     if (!selectedFriend || !content.trim()) {
       return;
     }
 
-    try {
-      setError('');
-      setSending(true);
+    const socket = getSocket();
+    const trimmedContent = content.trim();
 
-      await api.post('/messages', {
-        to: selectedFriend._id,
-        content: content.trim()
-      });
+    setError('');
+    setSending(true);
+    setContent('');
 
-      setContent('');
-      await fetchConversation(selectedFriend._id);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send message');
-    } finally {
-      setSending(false);
-    }
+    socket.emit(
+      'sendMessage',
+      {
+        receiverId: selectedFriend._id,
+        content: trimmedContent
+      },
+      (response) => {
+        setSending(false);
+
+        if (response?.error) {
+          setError(response.error);
+          setContent(trimmedContent);
+        }
+      }
+    );
   };
 
   const getFriendName = (friend) => {
