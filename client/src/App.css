@@ -216,3 +216,127 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+.messages-section {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.friends-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.friends-sidebar h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.friends-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.friend-item {
+  width: 100%;
+  padding: 0.6rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #f9fafb;
+  text-align: left;
+  cursor: pointer;
+}
+
+.friend-item.selected {
+  background-color: #dbeafe;
+  border-color: #2563eb;
+}
+
+.conversation-box {
+  flex: 1;
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.conversation-box h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.messages-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.message-bubble {
+  max-width: 70%;
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.message-bubble p {
+  margin: 0 0 0.25rem 0;
+}
+
+.message-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.my-message {
+  align-self: flex-end;
+  background-color: #dbeafe;
+}
+
+.their-message {
+  align-self: flex-start;
+  background-color: #f3f4f6;
+}
+
+.message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.message-form textarea {
+  padding: 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.message-form button {
+  align-self: flex-end;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.message-form button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
