@@ -15,6 +15,7 @@ const Navbar = () => {
         <Link to="/posts">Feed</Link>
         <Link to="/groups">Groups</Link>
         <Link to="/users">Users</Link>
+        <Link to="/profile">Profile</Link>
         <Link to="/messages">Messages</Link>
       </div>
 

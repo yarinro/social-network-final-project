@@ -1,6 +1,9 @@
 const express = require('express');
 const {
   getUsers,
+  getMyProfile,
+  updateMyProfile,
+  deleteMyAccount,
   getUserById,
   searchUsers,
   addFriend,
@@ -10,8 +13,11 @@ const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+router.get('/me', protect, getMyProfile);
+router.patch('/me', protect, updateMyProfile);
+router.delete('/me', protect, deleteMyAccount);
+router.get('/search', protect, searchUsers);
 router.get('/', protect, getUsers);
-router.get('/search/:query', protect, searchUsers);
 router.get('/:id', protect, getUserById);
 router.post('/:id/friend', protect, addFriend);
 router.delete('/:id/friend', protect, removeFriend);

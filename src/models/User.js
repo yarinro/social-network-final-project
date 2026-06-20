@@ -24,6 +24,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    bio: {
+      type: String,
+      default: ''
+    },
+    profileImageUrl: {
+      type: String,
+      default: ''
+    },
     role: {
       type: String,
       enum: ['user', 'admin'],

@@ -1,4 +1,7 @@
 const User = require('../models/User');
+const Group = require('../models/Group');
+const Post = require('../models/Post');
+const Message = require('../models/Message');
 
 const friendFields = 'username fullName email';
 const groupFields = 'name description isPrivate';
@@ -9,6 +12,103 @@ const getUsers = async (req, res) => {
       .select('_id username fullName email role friends groups createdAt');
 
     res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getMyProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select('-passwordHash')
+      .populate('friends', friendFields)
+      .populate('groups', groupFields);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateMyProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { fullName, bio, profileImageUrl } = req.body;
+
+    if (fullName !== undefined) {
+      if (!fullName.trim()) {
+        return res.status(400).json({ message: 'Full name cannot be empty' });
+      }
+
+      user.fullName = fullName.trim();
+    }
+
+    if (bio !== undefined) {
+      user.bio = bio;
+    }
+
+    if (profileImageUrl !== undefined) {
+      user.profileImageUrl = profileImageUrl;
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(user._id).select('-passwordHash');
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const deleteMyAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const managedGroupsCount = await Group.countDocuments({ manager: userId });
+
+    if (managedGroupsCount > 0) {
+      return res.status(400).json({
+        message:
+          'You manage one or more groups. Delete or transfer them before deleting your account.'
+      });
+    }
+
+    await User.updateMany(
+      { friends: userId },
+      { $pull: { friends: userId } }
+    );
+
+    await Group.updateMany(
+      { members: userId },
+      { $pull: { members: userId } }
+    );
+
+    await Group.updateMany(
+      { pendingMembers: userId },
+      { $pull: { pendingMembers: userId } }
+    );
+
+    await Post.deleteMany({ author: userId });
+    await Message.deleteMany({
+      $or: [{ from: userId }, { to: userId }]
+    });
+
+    await User.findByIdAndDelete(userId);
+
+    res.json({ message: 'Account deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -33,16 +133,22 @@ const getUserById = async (req, res) => {
 
 const searchUsers = async (req, res) => {
   try {
-    const { query } = req.params;
+    const { username, fullName, email } = req.query;
+    const filter = { _id: { $ne: req.user._id } };
 
-    const users = await User.find({
-      _id: { $ne: req.user._id },
-      $or: [
-        { username: { $regex: query, $options: 'i' } },
-        { fullName: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } }
-      ]
-    })
+    if (username) {
+      filter.username = { $regex: username, $options: 'i' };
+    }
+
+    if (fullName) {
+      filter.fullName = { $regex: fullName, $options: 'i' };
+    }
+
+    if (email) {
+      filter.email = { $regex: email, $options: 'i' };
+    }
+
+    const users = await User.find(filter)
       .select('-passwordHash')
       .limit(20);
 
@@ -132,6 +238,9 @@ const removeFriend = async (req, res) => {
 
 module.exports = {
   getUsers,
+  getMyProfile,
+  updateMyProfile,
+  deleteMyAccount,
   getUserById,
   searchUsers,
   addFriend,
