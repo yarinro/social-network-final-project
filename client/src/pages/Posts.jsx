@@ -7,6 +7,8 @@ const Posts = () => {
   const [posts, setPosts] = useState([]);
   const [memberGroups, setMemberGroups] = useState([]);
   const [content, setContent] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [groupId, setGroupId] = useState('');
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -61,11 +63,15 @@ const Posts = () => {
     try {
       const response = await api.post('/posts', {
         group: groupId,
-        content: content.trim()
+        content: content.trim(),
+        imageUrl: imageUrl.trim(),
+        videoUrl: videoUrl.trim()
       });
 
       setPosts((prevPosts) => [response.data, ...prevPosts]);
       setContent('');
+      setImageUrl('');
+      setVideoUrl('');
       setMessage('Post created successfully.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create post');
@@ -147,6 +153,26 @@ const Posts = () => {
               />
             </label>
 
+            <label>
+              Image URL (optional)
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(event) => setImageUrl(event.target.value)}
+                placeholder="https://example.com/image.jpg"
+              />
+            </label>
+
+            <label>
+              Video URL (optional)
+              <input
+                type="url"
+                value={videoUrl}
+                onChange={(event) => setVideoUrl(event.target.value)}
+                placeholder="https://example.com/video.mp4"
+              />
+            </label>
+
             <button type="submit" disabled={creating}>
               {creating ? 'Posting...' : 'Create Post'}
             </button>
@@ -171,6 +197,24 @@ const Posts = () => {
                   {new Date(post.createdAt).toLocaleString()}
                 </p>
                 <p className="post-content">{post.content}</p>
+
+                {post.imageUrl && (
+                  <img
+                    src={post.imageUrl}
+                    alt="Post"
+                    className="post-image"
+                  />
+                )}
+
+                {post.videoUrl && (
+                  <video
+                    src={post.videoUrl}
+                    controls
+                    className="post-video"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                )}
               </article>
             ))}
           </div>

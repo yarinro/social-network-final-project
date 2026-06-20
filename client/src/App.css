@@ -447,7 +447,8 @@
 }
 
 .post-form select,
-.post-form textarea {
+.post-form textarea,
+.post-form input {
   padding: 0.6rem;
   border: 1px solid #d1d5db;
   border-radius: 4px;
@@ -501,4 +502,20 @@
 .post-content {
   margin: 0;
   white-space: pre-wrap;
+}
+
+.post-image,
+.post-video {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.75rem;
+  border-radius: 6px;
+}
+
+.post-image {
+  height: auto;
+}
+
+.post-video {
+  width: 100%;
 }
