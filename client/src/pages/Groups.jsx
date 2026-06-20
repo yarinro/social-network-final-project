@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import UserBadge from '../components/UserBadge';
 
 const Groups = () => {
   const { user } = useAuth();
@@ -113,14 +114,6 @@ const Groups = () => {
     fetchGroups();
   }, [fetchGroups]);
 
-  const getManagerName = (manager) => {
-    if (!manager) {
-      return 'Unknown';
-    }
-
-    return manager.fullName || manager.username || 'Unknown';
-  };
-
   const getUserStatus = (group) => {
     if (!user) {
       return 'Not joined';
@@ -139,18 +132,6 @@ const Groups = () => {
     }
 
     return 'Not joined';
-  };
-
-  const getPendingUserName = (pendingUser) => {
-    if (!pendingUser) {
-      return 'Unknown user';
-    }
-
-    if (typeof pendingUser === 'object') {
-      return pendingUser.fullName || pendingUser.username || pendingUser.email;
-    }
-
-    return 'Pending user';
   };
 
   const getPendingUserId = (pendingUser) => {
@@ -416,9 +397,10 @@ const Groups = () => {
             </div>
 
             <p>{group.description || 'No description'}</p>
-            <p>
-              <strong>Manager:</strong> {getManagerName(group.manager)}
+            <p className="group-manager-row">
+              <strong>Manager:</strong>
             </p>
+            <UserBadge user={group.manager} />
             <p>
               <strong>Members:</strong> {group.members?.length || 0}
             </p>
@@ -474,10 +456,7 @@ const Groups = () => {
 
                     return (
                       <div key={pendingUserId} className="pending-member-row">
-                        <div>
-                          <strong>{getPendingUserName(pendingUser)}</strong>
-                          {pendingUser.email && <p>{pendingUser.email}</p>}
-                        </div>
+                        <UserBadge user={pendingUser} />
                         <button
                           type="button"
                           className="approve-button"

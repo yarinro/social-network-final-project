@@ -2,7 +2,7 @@ const Group = require('../models/Group');
 const Post = require('../models/Post');
 const User = require('../models/User');
 
-const userFields = 'username fullName email';
+const userFields = 'username fullName email profileImageUrl';
 
 const populateGroup = (query, includePending = true) => {
   query.populate('manager', userFields).populate('members', userFields);

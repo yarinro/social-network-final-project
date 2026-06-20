@@ -2,7 +2,7 @@ const Post = require('../models/Post');
 const Group = require('../models/Group');
 const User = require('../models/User');
 
-const authorFields = 'username fullName email';
+const authorFields = 'username fullName email profileImageUrl';
 const groupFields = 'name description isPrivate';
 
 const populatePost = (query) => {

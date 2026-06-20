@@ -625,14 +625,129 @@
 }
 
 .friend-item {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.6rem;
   margin-bottom: 0.5rem;
   border: 1px solid #d1d5db;
   border-radius: 4px;
   background-color: #f9fafb;
-  text-align: left;
+  list-style: none;
+}
+
+.friend-chat-button {
+  padding: 0.35rem 0.7rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #2563eb;
+  color: #ffffff;
   cursor: pointer;
+}
+
+.conversation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.conversation-header h2 {
+  margin: 0;
+}
+
+.message-user-badge {
+  margin-bottom: 0.35rem;
+}
+
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.2s ease;
+}
+
+.user-badge:hover {
+  opacity: 0.85;
+}
+
+.user-badge-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.user-badge-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.user-badge-name {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.navbar-user-badge .user-badge-name {
+  color: #ffffff;
+}
+
+.navbar-user-badge .user-badge-fallback {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+.public-profile-card {
+  max-width: 500px;
+  padding: 1.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background-color: #ffffff;
+  text-align: center;
+}
+
+.public-profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 1rem auto;
+  display: block;
+}
+
+.public-profile-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.public-profile-card h2 {
+  margin-top: 0;
+}
+
+.public-profile-card p {
+  text-align: left;
+}
+
+.post-author {
+  margin-bottom: 0.5rem;
+}
+
+.group-manager-row {
+  margin-bottom: 0.25rem;
 }
 
 .friend-item.selected {

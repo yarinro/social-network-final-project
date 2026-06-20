@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import UserBadge from '../components/UserBadge';
 
 const Users = () => {
   const { user, loading: authLoading, updateUser } = useAuth();
@@ -213,10 +214,7 @@ const Users = () => {
           <div className="users-list">
             {users.map((listedUser) => (
               <div key={listedUser._id} className="user-card">
-                <h3>{listedUser.fullName}</h3>
-                <p>
-                  <strong>Username:</strong> {listedUser.username}
-                </p>
+                <UserBadge user={listedUser} />
                 <p>
                   <strong>Email:</strong> {listedUser.email}
                 </p>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { getSocket } from '../socket';
+import UserBadge from '../components/UserBadge';
 
 const Messages = () => {
   const { user, loading: authLoading } = useAuth();
@@ -135,10 +136,6 @@ const Messages = () => {
     );
   };
 
-  const getFriendName = (friend) => {
-    return friend.fullName || friend.username;
-  };
-
   const isMyMessage = (message) => {
     const fromId = message.from._id || message.from;
     return fromId.toString() === user._id.toString();
@@ -179,17 +176,21 @@ const Messages = () => {
           ) : (
             <ul className="friends-list">
               {friends.map((friend) => (
-                <li key={friend._id}>
+                <li
+                  key={friend._id}
+                  className={
+                    selectedFriend?._id === friend._id
+                      ? 'friend-item selected'
+                      : 'friend-item'
+                  }
+                >
+                  <UserBadge user={friend} />
                   <button
                     type="button"
-                    className={
-                      selectedFriend?._id === friend._id
-                        ? 'friend-item selected'
-                        : 'friend-item'
-                    }
+                    className="friend-chat-button"
                     onClick={() => handleSelectFriend(friend)}
                   >
-                    {getFriendName(friend)}
+                    Chat
                   </button>
                 </li>
               ))}
@@ -202,7 +203,10 @@ const Messages = () => {
             <p>Select a friend to start chatting.</p>
           ) : (
             <>
-              <h2>Chat with {getFriendName(selectedFriend)}</h2>
+              <div className="conversation-header">
+                <h2>Chat with</h2>
+                <UserBadge user={selectedFriend} />
+              </div>
 
               {loadingConversation ? (
                 <p>Loading conversation...</p>
@@ -219,6 +223,9 @@ const Messages = () => {
                           : 'message-bubble their-message'
                       }
                     >
+                      {!isMyMessage(message) && (
+                        <UserBadge user={message.from} className="message-user-badge" />
+                      )}
                       <p>{message.content}</p>
                       <span className="message-time">
                         {new Date(message.createdAt).toLocaleString()}

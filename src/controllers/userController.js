@@ -3,13 +3,13 @@ const Group = require('../models/Group');
 const Post = require('../models/Post');
 const Message = require('../models/Message');
 
-const friendFields = 'username fullName email';
+const friendFields = 'username fullName email profileImageUrl';
 const groupFields = 'name description isPrivate';
 
 const getUsers = async (req, res) => {
   try {
     const users = await User.find()
-      .select('_id username fullName email role friends groups createdAt');
+      .select('_id username fullName email role friends groups createdAt profileImageUrl');
 
     res.json(users);
   } catch (error) {
@@ -109,6 +109,22 @@ const deleteMyAccount = async (req, res) => {
     await User.findByIdAndDelete(userId);
 
     res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getPublicProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select(
+      '_id username fullName bio profileImageUrl createdAt'
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -241,6 +257,7 @@ module.exports = {
   getMyProfile,
   updateMyProfile,
   deleteMyAccount,
+  getPublicProfile,
   getUserById,
   searchUsers,
   addFriend,

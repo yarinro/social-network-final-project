@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import UserBadge from '../components/UserBadge';
 
 const Posts = () => {
   const { user, loading: authLoading } = useAuth();
@@ -158,14 +159,6 @@ const Posts = () => {
     }
   };
 
-  const getAuthorName = (author) => {
-    if (!author) {
-      return 'Unknown';
-    }
-
-    return author.fullName || author.username || 'Unknown';
-  };
-
   const getGroupName = (group) => {
     if (!group) {
       return 'Unknown group';
@@ -301,7 +294,9 @@ const Posts = () => {
           <div className="posts-list">
             {posts.map((post) => (
               <article key={post._id} className="post-card">
-                <p className="post-author">{getAuthorName(post.author)}</p>
+                <div className="post-author">
+                  <UserBadge user={post.author} />
+                </div>
                 <p className="post-meta">
                   Group: {getGroupName(post.group)} |{' '}
                   {new Date(post.createdAt).toLocaleString()}

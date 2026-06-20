@@ -1,7 +1,7 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
 
-const userFields = 'username fullName email';
+const userFields = 'username fullName email profileImageUrl';
 
 const populateMessage = (query) => {
   return query.populate('from', userFields).populate('to', userFields);

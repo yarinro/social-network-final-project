@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import UserBadge from './UserBadge';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -23,9 +24,7 @@ const Navbar = () => {
       <div className="navbar-auth">
         {user ? (
           <>
-            <span className="navbar-user">
-              {user.fullName || user.username}
-            </span>
+            <UserBadge user={user} className="navbar-user-badge" />
             <button type="button" onClick={logout}>
               Logout
             </button>

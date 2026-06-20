@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import NetworkCanvas from '../components/NetworkCanvas';
+import UserBadge from '../components/UserBadge';
 
 const Home = () => {
   const { user } = useAuth();
@@ -9,7 +10,9 @@ const Home = () => {
       <h1>Home</h1>
 
       {user ? (
-        <p>Welcome, {user.fullName || user.username}!</p>
+        <p className="home-welcome">
+          Welcome, <UserBadge user={user} />!
+        </p>
       ) : (
         <p>Welcome! Please login or register to continue.</p>
       )}

@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Groups from './pages/Groups';
 import Posts from './pages/Posts';
 import Users from './pages/Users';
+import PublicProfile from './pages/PublicProfile';
 import Profile from './pages/Profile';
 import Messages from './pages/Messages';
 import Statistics from './pages/Statistics';
@@ -23,6 +24,7 @@ function App() {
           <Route path="/groups" element={<Groups />} />
           <Route path="/posts" element={<Posts />} />
           <Route path="/users" element={<Users />} />
+          <Route path="/users/:id" element={<PublicProfile />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/statistics" element={<Statistics />} />
