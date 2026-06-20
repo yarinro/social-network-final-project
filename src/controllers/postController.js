@@ -4,7 +4,7 @@ const User = require('../models/User');
 const { canViewGroup } = require('./groupController');
 
 const authorFields = 'username fullName email profileImageUrl';
-const groupFields = 'name description isPrivate';
+const groupFields = 'name description isPrivate manager';
 
 const populatePost = (query) => {
   return query
@@ -99,6 +99,19 @@ const canModifyPost = (post, user, group) => {
   const isAuthor = post.author.toString() === user._id.toString();
   const isManager = group && group.manager.toString() === user._id.toString();
   const isAdmin = user.role === 'admin';
+
+  return isAuthor || isManager || isAdmin;
+};
+
+const canDeletePost = (post, user, group) => {
+  const isAuthor = post.author.toString() === user._id.toString();
+  const isAdmin = user.role === 'admin';
+
+  if (!group) {
+    return isAuthor || isAdmin;
+  }
+
+  const isManager = group.manager.toString() === user._id.toString();
 
   return isAuthor || isManager || isAdmin;
 };
@@ -331,9 +344,9 @@ const deletePost = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    const group = await Group.findById(post.group);
+    const group = post.group ? await Group.findById(post.group) : null;
 
-    if (!canModifyPost(post, req.user, group)) {
+    if (!canDeletePost(post, req.user, group)) {
       return res.status(403).json({ message: 'Not authorized to delete this post' });
     }
 

@@ -32,6 +32,24 @@ const PostCard = ({
     return authorId.toString() === currentUser._id.toString();
   };
 
+  const isGroupManager = () => {
+    const managerId = post.group?.manager?._id || post.group?.manager;
+
+    if (!managerId) {
+      return false;
+    }
+
+    return managerId.toString() === currentUser._id.toString();
+  };
+
+  const canDeletePost = () => {
+    return (
+      isOwnPost() || isGroupManager() || currentUser.role === 'admin'
+    );
+  };
+
+  const showPostActions = isOwnPost() || canDeletePost();
+
   const renderPostMedia = () => (
     <>
       {post.imageUrl?.trim() && (
@@ -112,23 +130,27 @@ const PostCard = ({
           <p className="post-content">{post.content || ''}</p>
           {renderPostMedia()}
 
-          {isOwnPost() && (
+          {showPostActions && (
             <div className="post-actions">
-              <button
-                type="button"
-                className="edit-post-button"
-                onClick={() => onStartEdit(post)}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                className="delete-post-button"
-                onClick={() => onDeletePost(post._id)}
-                disabled={deletingId === post._id}
-              >
-                {deletingId === post._id ? 'Deleting...' : 'Delete'}
-              </button>
+              {isOwnPost() && (
+                <button
+                  type="button"
+                  className="edit-post-button"
+                  onClick={() => onStartEdit(post)}
+                >
+                  Edit
+                </button>
+              )}
+              {canDeletePost() && (
+                <button
+                  type="button"
+                  className="delete-post-button"
+                  onClick={() => onDeletePost(post._id)}
+                  disabled={deletingId === post._id}
+                >
+                  {deletingId === post._id ? 'Deleting...' : 'Delete'}
+                </button>
+              )}
             </div>
           )}
         </>

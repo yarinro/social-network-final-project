@@ -2,6 +2,7 @@ const express = require('express');
 const {
   createGroup,
   getGroups,
+  getMyGroups,
   searchGroups,
   getGroupById,
   updateGroup,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.post('/', protect, createGroup);
 router.get('/search', protect, searchGroups);
+router.get('/my', protect, getMyGroups);
 router.get('/', getGroups);
 router.post('/:id/join', protect, validateObjectId('id'), joinGroup);
 router.post(

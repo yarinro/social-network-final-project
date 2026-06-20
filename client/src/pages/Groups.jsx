@@ -7,6 +7,7 @@ import GroupLink from '../components/GroupLink';
 const Groups = () => {
   const { user } = useAuth();
   const [groups, setGroups] = useState([]);
+  const [view, setView] = useState('all');
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -96,12 +97,33 @@ const Groups = () => {
     [user, canManageGroup]
   );
 
+  const filterMyGroups = useCallback(
+    (groupsList) => {
+      if (!user) {
+        return [];
+      }
+
+      return (groupsList || []).filter(
+        (group) => isManager(group) || isMember(group)
+      );
+    },
+    [user, isManager, isMember]
+  );
+
   const fetchGroups = useCallback(async () => {
     try {
       setError('');
       setLoading(true);
-      const response = await api.get('/groups');
-      const enrichedGroups = await enrichGroups(response.data || []);
+
+      const endpoint = view === 'my' && user ? '/groups/my' : '/groups';
+      const response = await api.get(endpoint);
+      let groupsList = response.data || [];
+
+      if (view === 'my' && endpoint === '/groups') {
+        groupsList = filterMyGroups(groupsList);
+      }
+
+      const enrichedGroups = await enrichGroups(groupsList);
       setGroups(enrichedGroups);
       setIsSearchMode(false);
     } catch (err) {
@@ -109,11 +131,35 @@ const Groups = () => {
     } finally {
       setLoading(false);
     }
-  }, [enrichGroups]);
+  }, [view, user, enrichGroups, filterMyGroups]);
 
   useEffect(() => {
+    if (isSearchMode) {
+      return;
+    }
+
     fetchGroups();
-  }, [fetchGroups]);
+  }, [view, isSearchMode, fetchGroups]);
+
+  const getListTitle = () => {
+    if (isSearchMode) {
+      return 'Search Results';
+    }
+
+    return view === 'my' ? 'My Groups' : 'All Groups';
+  };
+
+  const getEmptyMessage = () => {
+    if (isSearchMode) {
+      return 'No groups matched your search.';
+    }
+
+    if (view === 'my') {
+      return 'You are not a member or manager of any groups yet.';
+    }
+
+    return 'No groups found.';
+  };
 
   const getUserStatus = (group) => {
     if (!user) {
@@ -173,6 +219,37 @@ const Groups = () => {
     }
   };
 
+  const performGroupSearch = async (activeView = view) => {
+    const params = {};
+
+    if (searchName.trim()) {
+      params.name = searchName.trim();
+    }
+
+    if (searchPrivacy !== 'all') {
+      params.isPrivate = searchPrivacy === 'private' ? 'true' : 'false';
+    }
+
+    if (searchManager.trim()) {
+      params.manager = searchManager.trim();
+    }
+
+    if (searchMinMembers.trim()) {
+      params.minMembers = searchMinMembers.trim();
+    }
+
+    const response = await api.get('/groups/search', { params });
+    let results = response.data || [];
+
+    if (activeView === 'my') {
+      results = filterMyGroups(results);
+    }
+
+    setGroups(results);
+    setIsSearchMode(true);
+    return results.length;
+  };
+
   const handleSearchGroups = async (event) => {
     event.preventDefault();
 
@@ -186,28 +263,8 @@ const Groups = () => {
     setSearching(true);
 
     try {
-      const params = {};
-
-      if (searchName.trim()) {
-        params.name = searchName.trim();
-      }
-
-      if (searchPrivacy !== 'all') {
-        params.isPrivate = searchPrivacy === 'private' ? 'true' : 'false';
-      }
-
-      if (searchManager.trim()) {
-        params.manager = searchManager.trim();
-      }
-
-      if (searchMinMembers.trim()) {
-        params.minMembers = searchMinMembers.trim();
-      }
-
-      const response = await api.get('/groups/search', { params });
-      setGroups(response.data || []);
-      setIsSearchMode(true);
-      setMessage(`Found ${response.data.length} group(s).`);
+      const count = await performGroupSearch();
+      setMessage(`Found ${count} group(s).`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to search groups');
     } finally {
@@ -221,6 +278,33 @@ const Groups = () => {
     setSearchManager('');
     setSearchMinMembers('');
     fetchGroups();
+  };
+
+  const handleViewChange = async (nextView) => {
+    if (nextView === view) {
+      return;
+    }
+
+    setView(nextView);
+
+    if (isSearchMode && user) {
+      setSearching(true);
+
+      try {
+        const count = await performGroupSearch(nextView);
+        setMessage(`Found ${count} group(s).`);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to search groups');
+      } finally {
+        setSearching(false);
+      }
+
+      return;
+    }
+
+    if (!isSearchMode) {
+      setLoading(true);
+    }
   };
 
   const startEdit = (group) => {
@@ -601,10 +685,32 @@ const Groups = () => {
       )}
 
       <section className="groups-section">
-        <h2>{isSearchMode ? 'Search Results' : 'All Groups'}</h2>
+        <div className="groups-toolbar posts-toolbar">
+          <h2>{getListTitle()}</h2>
+          {user && (
+            <div className="posts-view-buttons">
+              <button
+                type="button"
+                className={view === 'all' ? 'view-button active' : 'view-button'}
+                onClick={() => handleViewChange('all')}
+              >
+                All Groups
+              </button>
+              <button
+                type="button"
+                className={view === 'my' ? 'view-button active' : 'view-button'}
+                onClick={() => handleViewChange('my')}
+              >
+                My Groups
+              </button>
+            </div>
+          )}
+        </div>
 
-        {groups.length === 0 ? (
-          <p>{isSearchMode ? 'No groups matched your search.' : 'No groups found.'}</p>
+        {loading ? (
+          <p>Loading groups...</p>
+        ) : groups.length === 0 ? (
+          <p>{getEmptyMessage()}</p>
         ) : (
           <div className="groups-list">{groups.map(renderGroupCard)}</div>
         )}

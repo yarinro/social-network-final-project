@@ -126,6 +126,25 @@ const getGroups = async (req, res) => {
   }
 };
 
+const getMyGroups = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const groups = await populateGroup(
+      Group.find({
+        $or: [{ manager: userId }, { members: userId }]
+      }).sort({ createdAt: -1 }),
+      false
+    );
+
+    const enrichedGroups = await enrichManagerGroups(groups, req.user);
+
+    res.json(enrichedGroups);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const searchGroups = async (req, res) => {
   try {
     const { name, isPrivate, manager, minMembers } = req.query;
@@ -350,6 +369,7 @@ const approveMember = async (req, res) => {
 module.exports = {
   createGroup,
   getGroups,
+  getMyGroups,
   searchGroups,
   getGroupById,
   updateGroup,
