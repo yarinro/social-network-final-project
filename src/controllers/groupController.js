@@ -2,7 +2,8 @@ const Group = require('../models/Group');
 const Post = require('../models/Post');
 const User = require('../models/User');
 
-const userFields = 'username fullName email profileImageUrl';
+const userFields = 'username fullName profileImageUrl';
+const publicUserFields = 'username fullName profileImageUrl';
 
 const populateGroup = (query, includePending = true) => {
   query.populate('manager', userFields).populate('members', userFields);
@@ -14,11 +15,54 @@ const populateGroup = (query, includePending = true) => {
   return query;
 };
 
+const populateGroupPublic = (query, includePending = false) => {
+  query.populate('manager', publicUserFields).populate('members', publicUserFields);
+
+  if (includePending) {
+    query.populate('pendingMembers', publicUserFields);
+  }
+
+  return query;
+};
+
 const canManageGroup = (group, user) => {
-  const isManager = group.manager.toString() === user._id.toString();
+  const managerId = group.manager._id || group.manager;
+  const isManager = managerId.toString() === user._id.toString();
   const isAdmin = user.role === 'admin';
 
   return isManager || isAdmin;
+};
+
+const canViewGroup = (group, user) => {
+  if (!group.isPrivate) {
+    return true;
+  }
+
+  const userId = user._id.toString();
+  const managerId = (group.manager._id || group.manager).toString();
+  const isMember = group.members.some(
+    (memberId) => (memberId._id || memberId).toString() === userId
+  );
+
+  return isMember || managerId === userId || user.role === 'admin';
+};
+
+const formatGroupDetails = (group, includePending) => {
+  const response = {
+    _id: group._id,
+    name: group.name,
+    description: group.description,
+    isPrivate: group.isPrivate,
+    manager: group.manager,
+    members: group.members,
+    createdAt: group.createdAt
+  };
+
+  if (includePending) {
+    response.pendingMembers = group.pendingMembers;
+  }
+
+  return response;
 };
 
 const enrichManagerGroups = async (groupsList, user) => {
@@ -134,13 +178,28 @@ const searchGroups = async (req, res) => {
 
 const getGroupById = async (req, res) => {
   try {
-    const group = await populateGroup(Group.findById(req.params.id));
+    const group = await Group.findById(req.params.id).populate(
+      'manager',
+      publicUserFields
+    ).populate('members', publicUserFields);
 
     if (!group) {
       return res.status(404).json({ message: 'Group not found' });
     }
 
-    res.json(group);
+    if (!canViewGroup(group, req.user)) {
+      return res.status(403).json({
+        message: 'You do not have permission to view this private group'
+      });
+    }
+
+    const includePending = canManageGroup(group, req.user);
+
+    if (includePending) {
+      await group.populate('pendingMembers', publicUserFields);
+    }
+
+    res.json(formatGroupDetails(group, includePending));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -296,5 +355,7 @@ module.exports = {
   updateGroup,
   deleteGroup,
   joinGroup,
-  approveMember
+  approveMember,
+  canViewGroup,
+  canManageGroup
 };

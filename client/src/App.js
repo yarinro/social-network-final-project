@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Groups from './pages/Groups';
+import GroupDetails from './pages/GroupDetails';
 import Posts from './pages/Posts';
 import Users from './pages/Users';
 import PublicProfile from './pages/PublicProfile';
@@ -22,6 +23,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/groups" element={<Groups />} />
+          <Route path="/groups/:id" element={<GroupDetails />} />
           <Route path="/posts" element={<Posts />} />
           <Route path="/users" element={<Users />} />
           <Route path="/users/:id" element={<PublicProfile />} />

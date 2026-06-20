@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import UserBadge from '../components/UserBadge';
+import GroupLink from '../components/GroupLink';
 
 const Groups = () => {
   const { user } = useAuth();
@@ -384,7 +385,9 @@ const Groups = () => {
         ) : (
           <>
             <div className="group-card-header">
-              <h3>{group.name}</h3>
+              <h3>
+                <GroupLink group={group} className="group-card-title" />
+              </h3>
               <span
                 className={
                   group.isPrivate

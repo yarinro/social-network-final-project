@@ -16,7 +16,7 @@ const router = express.Router();
 router.post('/', protect, createPost);
 router.get('/feed', protect, getFeed);
 router.get('/my', protect, getMyPosts);
-router.get('/group/:groupId', getPostsByGroup);
+router.get('/group/:groupId', protect, getPostsByGroup);
 router.get('/:id', getPostById);
 router.patch('/:id', protect, updatePost);
 router.delete('/:id', protect, deletePost);

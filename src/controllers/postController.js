@@ -1,6 +1,7 @@
 const Post = require('../models/Post');
 const Group = require('../models/Group');
 const User = require('../models/User');
+const { canViewGroup } = require('./groupController');
 
 const authorFields = 'username fullName email profileImageUrl';
 const groupFields = 'name description isPrivate';
@@ -9,6 +10,89 @@ const populatePost = (query) => {
   return query
     .populate('author', authorFields)
     .populate('group', groupFields);
+};
+
+const getPostSort = (query) => {
+  const sortBy = query.sortBy === 'createdAt' ? 'createdAt' : 'createdAt';
+  const sortOrder = query.sortOrder === 'asc' ? 1 : -1;
+
+  return { [sortBy]: sortOrder };
+};
+
+const buildPostQueryFilter = async (query, options = {}) => {
+  const { includeGroup = false } = options;
+  const filter = {};
+  const andConditions = [];
+  const { text, author, group, fromDate, toDate, hasImage, hasVideo } = query;
+
+  if (text) {
+    filter.content = { $regex: text, $options: 'i' };
+  }
+
+  if (author) {
+    const authors = await User.find({
+      $or: [
+        { username: { $regex: author, $options: 'i' } },
+        { fullName: { $regex: author, $options: 'i' } }
+      ]
+    }).select('_id');
+
+    filter.author = { $in: authors.map((item) => item._id) };
+  }
+
+  if (includeGroup && group) {
+    const groups = await Group.find({
+      name: { $regex: group, $options: 'i' }
+    }).select('_id');
+
+    filter.group = { $in: groups.map((item) => item._id) };
+  }
+
+  if (fromDate) {
+    filter.createdAt = filter.createdAt || {};
+    filter.createdAt.$gte = new Date(fromDate);
+  }
+
+  if (toDate) {
+    filter.createdAt = filter.createdAt || {};
+    const endDate = new Date(toDate);
+    endDate.setHours(23, 59, 59, 999);
+    filter.createdAt.$lte = endDate;
+  }
+
+  if (hasImage === 'true') {
+    andConditions.push({ imageUrl: { $exists: true, $nin: ['', null] } });
+  } else if (hasImage === 'false') {
+    andConditions.push({
+      $or: [
+        { imageUrl: '' },
+        { imageUrl: null },
+        { imageUrl: { $exists: false } }
+      ]
+    });
+  }
+
+  if (hasVideo === 'true') {
+    andConditions.push({ videoUrl: { $exists: true, $nin: ['', null] } });
+  } else if (hasVideo === 'false') {
+    andConditions.push({
+      $or: [
+        { videoUrl: '' },
+        { videoUrl: null },
+        { videoUrl: { $exists: false } }
+      ]
+    });
+  }
+
+  if (andConditions.length > 0) {
+    if (Object.keys(filter).length > 0) {
+      return { $and: [{ ...filter }, ...andConditions] };
+    }
+
+    return andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
+  }
+
+  return filter;
 };
 
 const canModifyPost = (post, user, group) => {
@@ -82,17 +166,25 @@ const getFeed = async (req, res) => {
 
     const privateGroupIdsNotMember = privateGroupsNotMember.map((group) => group._id);
 
+    const permissionFilter = {
+      $or: [
+        { author: req.user._id },
+        { group: { $in: memberGroupIds } },
+        {
+          author: { $in: currentUser.friends },
+          group: { $nin: privateGroupIdsNotMember }
+        }
+      ]
+    };
+
+    const queryFilter = await buildPostQueryFilter(req.query, { includeGroup: true });
+    const finalFilter =
+      Object.keys(queryFilter).length > 0
+        ? { $and: [permissionFilter, queryFilter] }
+        : permissionFilter;
+
     const posts = await populatePost(
-      Post.find({
-        $or: [
-          { author: req.user._id },
-          { group: { $in: memberGroupIds } },
-          {
-            author: { $in: currentUser.friends },
-            group: { $nin: privateGroupIdsNotMember }
-          }
-        ]
-      }).sort({ createdAt: -1 })
+      Post.find(finalFilter).sort(getPostSort(req.query))
     );
 
     res.json(posts);
@@ -121,8 +213,52 @@ const getPostsByGroup = async (req, res) => {
       return res.status(404).json({ message: 'Group not found' });
     }
 
+    if (!canViewGroup(group, req.user)) {
+      return res.status(403).json({
+        message: 'You do not have permission to view posts in this private group'
+      });
+    }
+
+    const queryFilter = await buildPostQueryFilter(req.query);
+    const baseFilter = { group: req.params.groupId };
+    const finalFilter =
+      Object.keys(queryFilter).length > 0
+        ? { $and: [baseFilter, queryFilter] }
+        : baseFilter;
+
     const posts = await populatePost(
-      Post.find({ group: req.params.groupId }).sort({ createdAt: -1 })
+      Post.find(finalFilter).sort(getPostSort(req.query))
+    );
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getGroupPosts = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (!canViewGroup(group, req.user)) {
+      return res.status(403).json({
+        message: 'You do not have permission to view posts in this private group'
+      });
+    }
+
+    const queryFilter = await buildPostQueryFilter(req.query);
+    const baseFilter = { group: group._id };
+    const finalFilter =
+      Object.keys(queryFilter).length > 0
+        ? { $and: [baseFilter, queryFilter] }
+        : baseFilter;
+
+    const posts = await populatePost(
+      Post.find(finalFilter).sort(getPostSort(req.query))
     );
 
     res.json(posts);
@@ -215,6 +351,7 @@ module.exports = {
   getFeed,
   getMyPosts,
   getPostsByGroup,
+  getGroupPosts,
   getPostById,
   updatePost,
   deletePost

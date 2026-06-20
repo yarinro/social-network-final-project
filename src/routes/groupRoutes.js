@@ -9,6 +9,7 @@ const {
   joinGroup,
   approveMember
 } = require('../controllers/groupController');
+const { getGroupPosts } = require('../controllers/postController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -18,8 +19,9 @@ router.get('/search', protect, searchGroups);
 router.get('/', getGroups);
 router.post('/:id/join', protect, joinGroup);
 router.post('/:id/approve/:userId', protect, approveMember);
+router.get('/:id/posts', protect, getGroupPosts);
 router.patch('/:id', protect, updateGroup);
 router.delete('/:id', protect, deleteGroup);
-router.get('/:id', getGroupById);
+router.get('/:id', protect, getGroupById);
 
 module.exports = router;

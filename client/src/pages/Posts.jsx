@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import UserBadge from '../components/UserBadge';
+import PostCard from '../components/PostCard';
+import PostFilterForm from '../components/PostFilterForm';
+import { buildPostFilterParams, emptyPostFilters } from '../utils/postFilters';
 
 const Posts = () => {
   const { user, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState([]);
   const [memberGroups, setMemberGroups] = useState([]);
   const [view, setView] = useState('feed');
+  const [filters, setFilters] = useState(emptyPostFilters);
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
@@ -17,17 +20,29 @@ const Posts = () => {
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editVideoUrl, setEditVideoUrl] = useState('');
   const [loading, setLoading] = useState(true);
+  const [filtering, setFiltering] = useState(false);
   const [creating, setCreating] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const fetchPosts = useCallback(async () => {
-    const endpoint = view === 'my' ? '/posts/my' : '/posts/feed';
-    const response = await api.get(endpoint);
-    setPosts(response.data);
-  }, [view]);
+  const fetchPosts = useCallback(
+    async (activeFilters = filters) => {
+      if (view === 'my') {
+        const response = await api.get('/posts/my');
+        setPosts(response.data);
+        return response.data.length;
+      }
+
+      const response = await api.get('/posts/feed', {
+        params: buildPostFilterParams(activeFilters, { includeGroup: true })
+      });
+      setPosts(response.data);
+      return response.data.length;
+    },
+    [view, filters]
+  );
 
   const loadMemberGroups = useCallback(async () => {
     const groupsResponse = await api.get('/groups');
@@ -60,7 +75,7 @@ const Posts = () => {
     };
 
     loadPageData();
-  }, [user, fetchPosts, loadMemberGroups]);
+  }, [user, view, fetchPosts, loadMemberGroups]);
 
   const handleCreatePost = async (event) => {
     event.preventDefault();
@@ -91,9 +106,44 @@ const Posts = () => {
     }
   };
 
-  const isOwnPost = (post) => {
-    const authorId = post.author._id || post.author;
-    return authorId.toString() === user._id.toString();
+  const handleApplyFilters = async () => {
+    if (view !== 'feed') {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+    setFiltering(true);
+
+    try {
+      const count = await fetchPosts(filters);
+      setMessage(`Found ${count} post(s).`);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to filter posts');
+    } finally {
+      setFiltering(false);
+    }
+  };
+
+  const handleClearFilters = async () => {
+    const clearedFilters = { ...emptyPostFilters };
+    setFilters(clearedFilters);
+    setError('');
+    setMessage('');
+
+    if (view !== 'feed') {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const count = await fetchPosts(clearedFilters);
+      setMessage(`Found ${count} post(s).`);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load posts');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startEdit = (post) => {
@@ -158,28 +208,6 @@ const Posts = () => {
       setDeletingId(null);
     }
   };
-
-  const getGroupName = (group) => {
-    if (!group) {
-      return 'Unknown group';
-    }
-
-    return group.name || 'Unknown group';
-  };
-
-  const renderPostMedia = (post) => (
-    <>
-      {post.imageUrl && (
-        <img src={post.imageUrl} alt="Post" className="post-image" />
-      )}
-
-      {post.videoUrl && (
-        <video src={post.videoUrl} controls className="post-video">
-          Your browser does not support the video tag.
-        </video>
-      )}
-    </>
-  );
 
   if (authLoading) {
     return (
@@ -286,91 +314,46 @@ const Posts = () => {
           </div>
         </div>
 
+        {view === 'feed' && (
+          <PostFilterForm
+            filters={filters}
+            onChange={setFilters}
+            onSubmit={handleApplyFilters}
+            onClear={handleClearFilters}
+            showGroupField
+            submitting={filtering}
+          />
+        )}
+
         {loading ? (
           <p>Loading posts...</p>
         ) : posts.length === 0 ? (
-          <p>{view === 'my' ? 'You have not created any posts yet.' : 'No posts yet.'}</p>
+          <p>
+            {view === 'my'
+              ? 'You have not created any posts yet.'
+              : 'No posts match your filters.'}
+          </p>
         ) : (
           <div className="posts-list">
             {posts.map((post) => (
-              <article key={post._id} className="post-card">
-                <div className="post-author">
-                  <UserBadge user={post.author} />
-                </div>
-                <p className="post-meta">
-                  Group: {getGroupName(post.group)} |{' '}
-                  {new Date(post.createdAt).toLocaleString()}
-                </p>
-
-                {editingPostId === post._id ? (
-                  <form
-                    className="post-edit-form"
-                    onSubmit={(event) => handleUpdatePost(event, post._id)}
-                  >
-                    <label>
-                      Content
-                      <textarea
-                        value={editContent}
-                        onChange={(event) => setEditContent(event.target.value)}
-                        rows="4"
-                        required
-                      />
-                    </label>
-
-                    <label>
-                      Image URL
-                      <input
-                        type="url"
-                        value={editImageUrl}
-                        onChange={(event) => setEditImageUrl(event.target.value)}
-                      />
-                    </label>
-
-                    <label>
-                      Video URL
-                      <input
-                        type="url"
-                        value={editVideoUrl}
-                        onChange={(event) => setEditVideoUrl(event.target.value)}
-                      />
-                    </label>
-
-                    <div className="post-actions">
-                      <button type="submit" disabled={savingEdit}>
-                        {savingEdit ? 'Saving...' : 'Save'}
-                      </button>
-                      <button type="button" onClick={cancelEdit}>
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <>
-                    <p className="post-content">{post.content}</p>
-                    {renderPostMedia(post)}
-
-                    {isOwnPost(post) && (
-                      <div className="post-actions">
-                        <button
-                          type="button"
-                          className="edit-post-button"
-                          onClick={() => startEdit(post)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="delete-post-button"
-                          onClick={() => handleDeletePost(post._id)}
-                          disabled={deletingId === post._id}
-                        >
-                          {deletingId === post._id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </article>
+              <PostCard
+                key={post._id}
+                post={post}
+                currentUser={user}
+                editingPostId={editingPostId}
+                editContent={editContent}
+                editImageUrl={editImageUrl}
+                editVideoUrl={editVideoUrl}
+                savingEdit={savingEdit}
+                deletingId={deletingId}
+                onStartEdit={startEdit}
+                onCancelEdit={cancelEdit}
+                onUpdatePost={handleUpdatePost}
+                onDeletePost={handleDeletePost}
+                onEditContentChange={setEditContent}
+                onEditImageUrlChange={setEditImageUrl}
+                onEditVideoUrlChange={setEditVideoUrl}
+              />
             ))}
           </div>
         )}
