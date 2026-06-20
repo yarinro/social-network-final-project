@@ -888,3 +888,43 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+.statistics-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.chart-card {
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.chart-card h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.chart-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.stats-svg {
+  width: 100%;
+  max-width: 700px;
+  height: auto;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  fill: #111827;
+}
+
+.empty-state {
+  color: #6b7280;
+  font-style: italic;
+}

@@ -17,6 +17,7 @@ const Navbar = () => {
         <Link to="/users">Users</Link>
         <Link to="/profile">Profile</Link>
         <Link to="/messages">Messages</Link>
+        <Link to="/statistics">Statistics</Link>
       </div>
 
       <div className="navbar-auth">

@@ -8,6 +8,7 @@ import Posts from './pages/Posts';
 import Users from './pages/Users';
 import Profile from './pages/Profile';
 import Messages from './pages/Messages';
+import Statistics from './pages/Statistics';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           <Route path="/users" element={<Users />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/statistics" element={<Statistics />} />
         </Routes>
       </main>
     </BrowserRouter>

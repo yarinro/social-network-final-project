@@ -6,6 +6,7 @@ const userRoutes = require('./routes/userRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const postRoutes = require('./routes/postRoutes');
 const messageRoutes = require('./routes/messageRoutes');
+const statsRoutes = require('./routes/statsRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -22,6 +23,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/stats', statsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
