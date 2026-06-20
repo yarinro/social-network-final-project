@@ -52,7 +52,7 @@ const Groups = () => {
         return false;
       }
 
-      return group.members.some(
+      return (group.members || []).some(
         (member) => (member._id || member).toString() === user._id.toString()
       );
     },
@@ -101,7 +101,7 @@ const Groups = () => {
       setError('');
       setLoading(true);
       const response = await api.get('/groups');
-      const enrichedGroups = await enrichGroups(response.data);
+      const enrichedGroups = await enrichGroups(response.data || []);
       setGroups(enrichedGroups);
       setIsSearchMode(false);
     } catch (err) {
@@ -205,7 +205,7 @@ const Groups = () => {
       }
 
       const response = await api.get('/groups/search', { params });
-      setGroups(response.data);
+      setGroups(response.data || []);
       setIsSearchMode(true);
       setMessage(`Found ${response.data.length} group(s).`);
     } catch (err) {

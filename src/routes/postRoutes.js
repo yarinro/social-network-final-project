@@ -10,16 +10,17 @@ const {
   deletePost
 } = require('../controllers/postController');
 const { protect } = require('../middleware/authMiddleware');
+const { validateObjectId } = require('../middleware/validateObjectId');
 
 const router = express.Router();
 
 router.post('/', protect, createPost);
 router.get('/feed', protect, getFeed);
 router.get('/my', protect, getMyPosts);
-router.get('/group/:groupId', protect, getPostsByGroup);
-router.get('/:id', getPostById);
-router.patch('/:id', protect, updatePost);
-router.delete('/:id', protect, deletePost);
+router.get('/group/:groupId', protect, validateObjectId('groupId'), getPostsByGroup);
+router.get('/:id', validateObjectId('id'), getPostById);
+router.patch('/:id', protect, validateObjectId('id'), updatePost);
+router.delete('/:id', protect, validateObjectId('id'), deletePost);
 router.get('/', getPosts);
 
 module.exports = router;

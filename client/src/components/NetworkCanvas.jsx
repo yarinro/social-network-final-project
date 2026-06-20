@@ -38,9 +38,14 @@ const NetworkCanvas = () => {
     const width = canvas.width;
     const height = canvas.height;
     const nodes = createNodes(width, height);
-    let animationId;
+    let animationId = null;
+    let isMounted = true;
 
     const draw = () => {
+      if (!isMounted) {
+        return;
+      }
+
       ctx.clearRect(0, 0, width, height);
 
       ctx.fillStyle = '#f8fafc';
@@ -99,7 +104,10 @@ const NetworkCanvas = () => {
     draw();
 
     return () => {
-      window.cancelAnimationFrame(animationId);
+      isMounted = false;
+      if (animationId) {
+        window.cancelAnimationFrame(animationId);
+      }
     };
   }, []);
 

@@ -11,6 +11,7 @@ const {
   removeFriend
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
+const { validateObjectId } = require('../middleware/validateObjectId');
 
 const router = express.Router();
 
@@ -19,9 +20,9 @@ router.patch('/me', protect, updateMyProfile);
 router.delete('/me', protect, deleteMyAccount);
 router.get('/search', protect, searchUsers);
 router.get('/', protect, getUsers);
-router.get('/:id/public', protect, getPublicProfile);
-router.get('/:id', protect, getUserById);
-router.post('/:id/friend', protect, addFriend);
-router.delete('/:id/friend', protect, removeFriend);
+router.get('/:id/public', protect, validateObjectId('id'), getPublicProfile);
+router.get('/:id', protect, validateObjectId('id'), getUserById);
+router.post('/:id/friend', protect, validateObjectId('id'), addFriend);
+router.delete('/:id/friend', protect, validateObjectId('id'), removeFriend);
 
 module.exports = router;

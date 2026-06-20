@@ -18,18 +18,34 @@ const PostCard = ({
   onEditImageUrlChange,
   onEditVideoUrlChange
 }) => {
+  if (!post || !currentUser?._id) {
+    return null;
+  }
+
   const isOwnPost = () => {
-    const authorId = post.author._id || post.author;
+    const authorId = post.author?._id || post.author;
+
+    if (!authorId) {
+      return false;
+    }
+
     return authorId.toString() === currentUser._id.toString();
   };
 
   const renderPostMedia = () => (
     <>
-      {post.imageUrl && (
-        <img src={post.imageUrl} alt="Post" className="post-image" />
+      {post.imageUrl?.trim() && (
+        <img
+          src={post.imageUrl}
+          alt="Post"
+          className="post-image"
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
+          }}
+        />
       )}
 
-      {post.videoUrl && (
+      {post.videoUrl?.trim() && (
         <video src={post.videoUrl} controls className="post-video">
           Your browser does not support the video tag.
         </video>
@@ -44,7 +60,9 @@ const PostCard = ({
       </div>
       <p className="post-meta">
         Group: <GroupLink group={post.group} /> |{' '}
-        {new Date(post.createdAt).toLocaleString()}
+        {post.createdAt
+          ? new Date(post.createdAt).toLocaleString()
+          : 'Unknown date'}
       </p>
 
       {editingPostId === post._id ? (
@@ -91,7 +109,7 @@ const PostCard = ({
         </form>
       ) : (
         <>
-          <p className="post-content">{post.content}</p>
+          <p className="post-content">{post.content || ''}</p>
           {renderPostMedia()}
 
           {isOwnPost() && (

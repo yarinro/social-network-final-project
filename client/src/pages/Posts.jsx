@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 import PostCard from '../components/PostCard';
 import PostFilterForm from '../components/PostFilterForm';
 import { buildPostFilterParams, emptyPostFilters } from '../utils/postFilters';
@@ -28,26 +29,28 @@ const Posts = () => {
   const [message, setMessage] = useState('');
 
   const fetchPosts = useCallback(
-    async (activeFilters = filters) => {
+    async (activeFilters = emptyPostFilters) => {
       if (view === 'my') {
         const response = await api.get('/posts/my');
-        setPosts(response.data);
-        return response.data.length;
+        const postList = Array.isArray(response.data) ? response.data : [];
+        setPosts(postList);
+        return postList.length;
       }
 
       const response = await api.get('/posts/feed', {
         params: buildPostFilterParams(activeFilters, { includeGroup: true })
       });
-      setPosts(response.data);
-      return response.data.length;
+      const postList = Array.isArray(response.data) ? response.data : [];
+      setPosts(postList);
+      return postList.length;
     },
-    [view, filters]
+    [view]
   );
 
   const loadMemberGroups = useCallback(async () => {
     const groupsResponse = await api.get('/groups');
-    const groups = groupsResponse.data.filter((group) =>
-      group.members.some(
+    const groups = (groupsResponse.data || []).filter((group) =>
+      (group.members || []).some(
         (member) => (member._id || member).toString() === user._id.toString()
       )
     );
@@ -57,6 +60,10 @@ const Posts = () => {
   }, [user]);
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
     if (!user) {
       setLoading(false);
       return;
@@ -68,14 +75,14 @@ const Posts = () => {
         setLoading(true);
         await Promise.all([fetchPosts(), loadMemberGroups()]);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load posts');
+        setError(getApiErrorMessage(err, 'Failed to load posts'));
       } finally {
         setLoading(false);
       }
     };
 
     loadPageData();
-  }, [user, view, fetchPosts, loadMemberGroups]);
+  }, [user, authLoading, view, fetchPosts, loadMemberGroups]);
 
   const handleCreatePost = async (event) => {
     event.preventDefault();
@@ -100,7 +107,7 @@ const Posts = () => {
       setVideoUrl('');
       setMessage('Post created successfully.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create post');
+      setError(getApiErrorMessage(err, 'Failed to create post'));
     } finally {
       setCreating(false);
     }
@@ -119,7 +126,7 @@ const Posts = () => {
       const count = await fetchPosts(filters);
       setMessage(`Found ${count} post(s).`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to filter posts');
+        setError(getApiErrorMessage(err, 'Failed to filter posts'));
     } finally {
       setFiltering(false);
     }
@@ -140,7 +147,7 @@ const Posts = () => {
       const count = await fetchPosts(clearedFilters);
       setMessage(`Found ${count} post(s).`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load posts');
+      setError(getApiErrorMessage(err, 'Failed to load posts'));
     } finally {
       setLoading(false);
     }
@@ -181,7 +188,7 @@ const Posts = () => {
       cancelEdit();
       setMessage('Post updated successfully.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update post');
+      setError(getApiErrorMessage(err, 'Failed to update post'));
     } finally {
       setSavingEdit(false);
     }
@@ -203,7 +210,7 @@ const Posts = () => {
       setPosts((prevPosts) => prevPosts.filter((post) => post._id !== postId));
       setMessage(response.data.message);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete post');
+      setError(getApiErrorMessage(err, 'Failed to delete post'));
     } finally {
       setDeletingId(null);
     }

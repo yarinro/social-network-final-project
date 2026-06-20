@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const PublicProfile = () => {
   const { id } = useParams();
@@ -11,8 +12,7 @@ const PublicProfile = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
+    if (authLoading || !user) {
       return;
     }
 
@@ -20,10 +20,11 @@ const PublicProfile = () => {
       try {
         setError('');
         setLoading(true);
+        setProfile(null);
         const response = await api.get(`/users/${id}/public`);
         setProfile(response.data);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load public profile');
+        setError(getApiErrorMessage(err, 'Failed to load public profile'));
         setProfile(null);
       } finally {
         setLoading(false);
@@ -31,7 +32,7 @@ const PublicProfile = () => {
     };
 
     fetchPublicProfile();
-  }, [user, id]);
+  }, [user, authLoading, id]);
 
   const getInitial = () => {
     const name = profile?.username || profile?.fullName || '?';
@@ -47,15 +48,6 @@ const PublicProfile = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="page">
-        <h1>Public Profile</h1>
-        <p>Please login to view public profiles.</p>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="page">
@@ -65,11 +57,12 @@ const PublicProfile = () => {
     );
   }
 
-  if (error) {
+  if (error || !profile) {
     return (
       <div className="page">
         <h1>Public Profile</h1>
-        <p className="error-message">{error}</p>
+        <p className="error-message">{error || 'Not found.'}</p>
+        <Link to="/users">Back to Users</Link>
       </div>
     );
   }
@@ -82,8 +75,11 @@ const PublicProfile = () => {
         {profile.profileImageUrl ? (
           <img
             src={profile.profileImageUrl}
-            alt={`${profile.username} profile`}
+            alt={`${profile.username || 'User'} profile`}
             className="public-profile-avatar"
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
           />
         ) : (
           <div className="public-profile-avatar public-profile-fallback">
@@ -91,16 +87,18 @@ const PublicProfile = () => {
           </div>
         )}
 
-        <h2>@{profile.username}</h2>
+        <h2>@{profile.username || 'unknown'}</h2>
         <p>
-          <strong>Full Name:</strong> {profile.fullName}
+          <strong>Full Name:</strong> {profile.fullName || 'Not provided'}
         </p>
         <p>
           <strong>Bio:</strong> {profile.bio || 'No bio yet.'}
         </p>
         <p>
           <strong>Joined:</strong>{' '}
-          {new Date(profile.createdAt).toLocaleDateString()}
+          {profile.createdAt
+            ? new Date(profile.createdAt).toLocaleDateString()
+            : 'Unknown'}
         </p>
       </section>
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const Statistics = () => {
   const { user, loading: authLoading } = useAuth();
@@ -13,8 +14,7 @@ const Statistics = () => {
   const monthChartRef = useRef(null);
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
+    if (authLoading || !user) {
       return;
     }
 
@@ -31,14 +31,16 @@ const Statistics = () => {
         setPostsByGroup(groupResponse.data || []);
         setPostsByMonth(monthResponse.data || []);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load statistics');
+        setError(getApiErrorMessage(err, 'Failed to load statistics'));
+        setPostsByGroup([]);
+        setPostsByMonth([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchStats();
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (!groupChartRef.current || postsByGroup.length === 0) {

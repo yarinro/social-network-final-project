@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 import UserBadge from '../components/UserBadge';
 import PostCard from '../components/PostCard';
 import PostFilterForm from '../components/PostFilterForm';
@@ -14,7 +15,7 @@ const GroupDetails = () => {
   const [posts, setPosts] = useState([]);
   const [filters, setFilters] = useState(emptyPostFilters);
   const [loadingGroup, setLoadingGroup] = useState(true);
-  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [filtering, setFiltering] = useState(false);
   const [error, setError] = useState('');
   const [editingPostId, setEditingPostId] = useState(null);
@@ -25,21 +26,17 @@ const GroupDetails = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [message, setMessage] = useState('');
 
-  const fetchGroupPosts = useCallback(
-    async (activeFilters = filters) => {
-      const response = await api.get(`/groups/${id}/posts`, {
-        params: buildPostFilterParams(activeFilters)
-      });
-      setPosts(response.data);
-      return response.data.length;
-    },
-    [id, filters]
-  );
+  const fetchGroupPosts = useCallback(async (activeFilters = emptyPostFilters) => {
+    const response = await api.get(`/groups/${id}/posts`, {
+      params: buildPostFilterParams(activeFilters)
+    });
+    const postList = Array.isArray(response.data) ? response.data : [];
+    setPosts(postList);
+    return postList.length;
+  }, [id]);
 
   useEffect(() => {
-    if (!user) {
-      setLoadingGroup(false);
-      setLoadingPosts(false);
+    if (authLoading || !user) {
       return;
     }
 
@@ -47,10 +44,11 @@ const GroupDetails = () => {
       try {
         setError('');
         setLoadingGroup(true);
+        setGroup(null);
         const response = await api.get(`/groups/${id}`);
         setGroup(response.data);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load group');
+        setError(getApiErrorMessage(err, 'Failed to load group'));
         setGroup(null);
       } finally {
         setLoadingGroup(false);
@@ -58,20 +56,19 @@ const GroupDetails = () => {
     };
 
     loadGroup();
-  }, [user, id]);
+  }, [user, authLoading, id]);
 
   useEffect(() => {
-    if (!user || !group) {
+    if (authLoading || !user || !group) {
       return;
     }
 
     const loadPosts = async () => {
       try {
-        setError('');
         setLoadingPosts(true);
         await fetchGroupPosts();
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load group posts');
+        setError(getApiErrorMessage(err, 'Failed to load group posts'));
         setPosts([]);
       } finally {
         setLoadingPosts(false);
@@ -79,7 +76,7 @@ const GroupDetails = () => {
     };
 
     loadPosts();
-  }, [user, group, fetchGroupPosts]);
+  }, [user, authLoading, group, fetchGroupPosts]);
 
   const handleApplyFilters = async () => {
     setError('');
@@ -90,7 +87,7 @@ const GroupDetails = () => {
       const count = await fetchGroupPosts(filters);
       setMessage(`Found ${count} post(s).`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to filter posts');
+      setError(getApiErrorMessage(err, 'Failed to filter posts'));
     } finally {
       setFiltering(false);
     }
@@ -104,12 +101,9 @@ const GroupDetails = () => {
 
     try {
       setLoadingPosts(true);
-      const response = await api.get(`/groups/${id}/posts`, {
-        params: buildPostFilterParams(clearedFilters)
-      });
-      setPosts(response.data);
+      await fetchGroupPosts(clearedFilters);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load group posts');
+      setError(getApiErrorMessage(err, 'Failed to load group posts'));
     } finally {
       setLoadingPosts(false);
     }
@@ -117,7 +111,7 @@ const GroupDetails = () => {
 
   const startEdit = (post) => {
     setEditingPostId(post._id);
-    setEditContent(post.content);
+    setEditContent(post.content || '');
     setEditImageUrl(post.imageUrl || '');
     setEditVideoUrl(post.videoUrl || '');
     setError('');
@@ -150,7 +144,7 @@ const GroupDetails = () => {
       cancelEdit();
       setMessage('Post updated successfully.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update post');
+      setError(getApiErrorMessage(err, 'Failed to update post'));
     } finally {
       setSavingEdit(false);
     }
@@ -172,7 +166,7 @@ const GroupDetails = () => {
       setPosts((prevPosts) => prevPosts.filter((post) => post._id !== postId));
       setMessage(response.data.message);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete post');
+      setError(getApiErrorMessage(err, 'Failed to delete post'));
     } finally {
       setDeletingId(null);
     }
@@ -187,15 +181,6 @@ const GroupDetails = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="page">
-        <h1>Group Details</h1>
-        <p>Please login to view group details.</p>
-      </div>
-    );
-  }
-
   if (loadingGroup) {
     return (
       <div className="page">
@@ -205,15 +190,17 @@ const GroupDetails = () => {
     );
   }
 
-  if (error && !group) {
+  if (!group) {
     return (
       <div className="page">
         <h1>Group Details</h1>
-        <p className="error-message">{error}</p>
+        <p className="error-message">{error || 'Not found.'}</p>
         <Link to="/groups">Back to Groups</Link>
       </div>
     );
   }
+
+  const members = group.members || [];
 
   return (
     <div className="page">
@@ -224,7 +211,7 @@ const GroupDetails = () => {
 
       <section className="group-details-card">
         <div className="group-details-header">
-          <h2>{group.name}</h2>
+          <h2>{group.name || 'Unnamed group'}</h2>
           <span
             className={
               group.isPrivate
@@ -240,11 +227,13 @@ const GroupDetails = () => {
           <strong>Description:</strong> {group.description || 'No description'}
         </p>
         <p>
-          <strong>Members:</strong> {group.members?.length || 0}
+          <strong>Members:</strong> {members.length}
         </p>
         <p>
           <strong>Created:</strong>{' '}
-          {new Date(group.createdAt).toLocaleDateString()}
+          {group.createdAt
+            ? new Date(group.createdAt).toLocaleDateString()
+            : 'Unknown'}
         </p>
 
         <div className="group-details-manager">
@@ -252,12 +241,15 @@ const GroupDetails = () => {
           <UserBadge user={group.manager} />
         </div>
 
-        {group.members?.length > 0 && (
+        {members.length > 0 && (
           <div className="group-details-members">
             <strong>Members:</strong>
             <div className="group-members-list">
-              {group.members.map((member) => (
-                <UserBadge key={member._id} user={member} />
+              {members.map((member) => (
+                <UserBadge
+                  key={member?._id || member}
+                  user={member}
+                />
               ))}
             </div>
           </div>

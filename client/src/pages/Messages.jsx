@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 import { getSocket } from '../socket';
 import UserBadge from '../components/UserBadge';
 
@@ -21,28 +22,32 @@ const Messages = () => {
   }, [selectedFriend]);
 
   useEffect(() => {
-    if (!user) {
-      setLoadingFriends(false);
+    if (authLoading || !user) {
+      if (!authLoading) {
+        setLoadingFriends(false);
+      }
       return;
     }
 
     const fetchFriends = async () => {
       try {
         setError('');
+        setLoadingFriends(true);
         const response = await api.get(`/users/${user._id}`);
-        setFriends(response.data.friends || []);
+        setFriends(response.data?.friends || []);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load friends');
+        setError(getApiErrorMessage(err, 'Failed to load friends'));
+        setFriends([]);
       } finally {
         setLoadingFriends(false);
       }
     };
 
     fetchFriends();
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
-    if (!user) {
+    if (authLoading || !user?._id) {
       return;
     }
 
@@ -50,16 +55,24 @@ const Messages = () => {
     socket.emit('registerUser', user._id);
 
     const handleReceiveMessage = (message) => {
+      if (!message?.from || !message?.to) {
+        return;
+      }
+
       const friend = selectedFriendRef.current;
 
       if (!friend) {
         return;
       }
 
-      const fromId = (message.from._id || message.from).toString();
-      const toId = (message.to._id || message.to).toString();
+      const fromId = (message.from._id || message.from)?.toString();
+      const toId = (message.to._id || message.to)?.toString();
       const myId = user._id.toString();
-      const friendId = friend._id.toString();
+      const friendId = friend._id?.toString();
+
+      if (!fromId || !toId || !friendId) {
+        return;
+      }
 
       const isCurrentConversation =
         (fromId === myId && toId === friendId) ||
@@ -83,16 +96,16 @@ const Messages = () => {
     return () => {
       socket.off('receiveMessage', handleReceiveMessage);
     };
-  }, [user]);
+  }, [user, authLoading]);
 
   const fetchConversation = async (friendId) => {
     try {
       setError('');
       setLoadingConversation(true);
       const response = await api.get(`/messages/conversation/${friendId}`);
-      setConversation(response.data);
+      setConversation(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load conversation');
+      setError(getApiErrorMessage(err, 'Failed to load conversation'));
       setConversation([]);
     } finally {
       setLoadingConversation(false);
@@ -100,6 +113,10 @@ const Messages = () => {
   };
 
   const handleSelectFriend = (friend) => {
+    if (!friend?._id) {
+      return;
+    }
+
     setSelectedFriend(friend);
     setContent('');
     fetchConversation(friend._id);
@@ -108,7 +125,7 @@ const Messages = () => {
   const handleSendMessage = (event) => {
     event.preventDefault();
 
-    if (!selectedFriend || !content.trim()) {
+    if (!selectedFriend?._id || !content.trim()) {
       return;
     }
 
@@ -137,6 +154,10 @@ const Messages = () => {
   };
 
   const isMyMessage = (message) => {
+    if (!user?._id || !message?.from) {
+      return false;
+    }
+
     const fromId = message.from._id || message.from;
     return fromId.toString() === user._id.toString();
   };
@@ -146,15 +167,6 @@ const Messages = () => {
       <div className="page">
         <h1>Messages</h1>
         <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="page">
-        <h1>Messages</h1>
-        <p>Please login to view and send messages.</p>
       </div>
     );
   }
@@ -177,9 +189,9 @@ const Messages = () => {
             <ul className="friends-list">
               {friends.map((friend) => (
                 <li
-                  key={friend._id}
+                  key={friend?._id || friend}
                   className={
-                    selectedFriend?._id === friend._id
+                    selectedFriend?._id === friend?._id
                       ? 'friend-item selected'
                       : 'friend-item'
                   }
@@ -226,9 +238,11 @@ const Messages = () => {
                       {!isMyMessage(message) && (
                         <UserBadge user={message.from} className="message-user-badge" />
                       )}
-                      <p>{message.content}</p>
+                      <p>{message.content || ''}</p>
                       <span className="message-time">
-                        {new Date(message.createdAt).toLocaleString()}
+                        {message.createdAt
+                          ? new Date(message.createdAt).toLocaleString()
+                          : ''}
                       </span>
                     </div>
                   ))}

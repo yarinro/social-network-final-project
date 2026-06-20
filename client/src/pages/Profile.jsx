@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const Profile = () => {
   const { user, loading: authLoading, updateUser, logout } = useAuth();
@@ -17,28 +18,29 @@ const Profile = () => {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
+    if (authLoading || !user) {
       return;
     }
 
     const fetchProfile = async () => {
       try {
         setError('');
+        setLoading(true);
         const response = await api.get('/users/me');
         setProfile(response.data);
         setFullName(response.data.fullName || '');
         setBio(response.data.bio || '');
         setProfileImageUrl(response.data.profileImageUrl || '');
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load profile');
+        setError(getApiErrorMessage(err, 'Failed to load profile'));
+        setProfile(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProfile();
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleSaveProfile = async (event) => {
     event.preventDefault();
@@ -60,7 +62,7 @@ const Profile = () => {
       updateUser(response.data.user);
       setMessage(response.data.message);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile');
+      setError(getApiErrorMessage(err, 'Failed to update profile'));
     } finally {
       setSaving(false);
     }
@@ -84,7 +86,7 @@ const Profile = () => {
       logout();
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete account');
+      setError(getApiErrorMessage(err, 'Failed to delete account'));
       setDeleting(false);
     }
   };
@@ -98,20 +100,20 @@ const Profile = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="page">
-        <h1>Profile</h1>
-        <p>Please login to view your profile.</p>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="page">
         <h1>Profile</h1>
         <p>Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="page">
+        <h1>Profile</h1>
+        <p className="error-message">{error || 'Failed to load profile.'}</p>
       </div>
     );
   }
@@ -126,42 +128,43 @@ const Profile = () => {
       <section className="profile-section">
         <h2>My Profile</h2>
 
-        {profile && (
-          <div className="profile-info">
-            {profile.profileImageUrl && (
-              <img
-                src={profile.profileImageUrl}
-                alt="Profile"
-                className="profile-image"
-              />
-            )}
-            <p>
-              <strong>Username:</strong> {profile.username}
-            </p>
-            <p>
-              <strong>Email:</strong> {profile.email}
-            </p>
-            <p>
-              <strong>Full Name:</strong> {profile.fullName}
-            </p>
-            <p>
-              <strong>Bio:</strong> {profile.bio || 'No bio yet.'}
-            </p>
-            <p>
-              <strong>Friends:</strong> {profile.friends?.length || 0}
-            </p>
-          </div>
-        )}
+        <div className="profile-info">
+          {profile.profileImageUrl && (
+            <img
+              src={profile.profileImageUrl}
+              alt="Profile"
+              className="profile-image"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
+          <p>
+            <strong>Username:</strong> {profile.username}
+          </p>
+          <p>
+            <strong>Email:</strong> {profile.email}
+          </p>
+          <p>
+            <strong>Full Name:</strong> {profile.fullName}
+          </p>
+          <p>
+            <strong>Bio:</strong> {profile.bio || 'No bio yet.'}
+          </p>
+          <p>
+            <strong>Friends:</strong> {profile.friends?.length || 0}
+          </p>
+        </div>
 
         <form className="profile-form" onSubmit={handleSaveProfile}>
           <h3>Edit Profile</h3>
 
           <div className="profile-readonly">
             <p>
-              <strong>Username:</strong> {profile?.username}
+              <strong>Username:</strong> {profile.username}
             </p>
             <p>
-              <strong>Email:</strong> {profile?.email}
+              <strong>Email:</strong> {profile.email}
             </p>
           </div>
 

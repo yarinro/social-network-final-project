@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 import UserBadge from '../components/UserBadge';
 
 const Users = () => {
@@ -53,7 +54,7 @@ const Users = () => {
 
   const fetchAllUsers = useCallback(async () => {
     const response = await api.get('/users');
-    const filteredUsers = response.data.filter(
+    const filteredUsers = (response.data || []).filter(
       (listedUser) => listedUser._id !== user._id
     );
     setUsers(filteredUsers);
@@ -67,7 +68,7 @@ const Users = () => {
         const response = await api.get('/users/search', {
           params: buildSearchParams(onlyFriends)
         });
-        setUsers(response.data);
+        setUsers(Array.isArray(response.data) ? response.data : []);
         setIsSearchMode(true);
         return response.data.length;
       }
@@ -78,8 +79,10 @@ const Users = () => {
   );
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
+    if (authLoading || !user) {
+      if (!authLoading) {
+        setLoading(false);
+      }
       return;
     }
 
@@ -89,17 +92,17 @@ const Users = () => {
         setLoading(true);
         await fetchAllUsers();
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load users');
+        setError(getApiErrorMessage(err, 'Failed to load users'));
       } finally {
         setLoading(false);
       }
     };
 
     loadUsers();
-  }, [user, fetchAllUsers]);
+  }, [user, authLoading, fetchAllUsers]);
 
   const isFriend = (userId) => {
-    return user.friends?.some(
+    return user?.friends?.some(
       (friendId) => (friendId._id || friendId).toString() === userId.toString()
     );
   };
@@ -114,7 +117,7 @@ const Users = () => {
       const count = await fetchUsers();
       setMessage(`Found ${count} user(s).`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to search users');
+      setError(getApiErrorMessage(err, 'Failed to search users'));
     } finally {
       setSearching(false);
     }
@@ -133,7 +136,7 @@ const Users = () => {
         setMessage(`Found ${count} user(s).`);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load users');
+      setError(getApiErrorMessage(err, 'Failed to load users'));
     } finally {
       setLoading(false);
     }
@@ -152,13 +155,13 @@ const Users = () => {
         const response = await api.get('/users/search', {
           params: { friendsOnly: 'true' }
         });
-        setUsers(response.data);
+        setUsers(Array.isArray(response.data) ? response.data : []);
         setIsSearchMode(true);
       } else {
         await fetchAllUsers();
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load users');
+      setError(getApiErrorMessage(err, 'Failed to load users'));
     } finally {
       setLoading(false);
     }
@@ -175,7 +178,7 @@ const Users = () => {
       setMessage(response.data.message);
       await fetchUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add friend');
+      setError(getApiErrorMessage(err, 'Failed to add friend'));
     } finally {
       setActionUserId(null);
     }
@@ -192,7 +195,7 @@ const Users = () => {
       setMessage(response.data.message);
       await fetchUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to remove friend');
+      setError(getApiErrorMessage(err, 'Failed to remove friend'));
     } finally {
       setActionUserId(null);
     }
