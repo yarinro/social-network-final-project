@@ -9,6 +9,7 @@ const Users = () => {
   const [searchUsername, setSearchUsername] = useState('');
   const [searchFullName, setSearchFullName] = useState('');
   const [searchEmail, setSearchEmail] = useState('');
+  const [friendsOnly, setFriendsOnly] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -16,13 +17,65 @@ const Users = () => {
   const [message, setMessage] = useState('');
   const [actionUserId, setActionUserId] = useState(null);
 
+  const hasTextFilters = () => {
+    return (
+      searchUsername.trim() ||
+      searchFullName.trim() ||
+      searchEmail.trim()
+    );
+  };
+
+  const buildSearchParams = (onlyFriends = friendsOnly) => {
+    const params = {};
+
+    if (searchUsername.trim()) {
+      params.username = searchUsername.trim();
+    }
+
+    if (searchFullName.trim()) {
+      params.fullName = searchFullName.trim();
+    }
+
+    if (searchEmail.trim()) {
+      params.email = searchEmail.trim();
+    }
+
+    if (onlyFriends) {
+      params.friendsOnly = 'true';
+    }
+
+    return params;
+  };
+
+  const shouldUseSearch = (onlyFriends = friendsOnly) => {
+    return onlyFriends || hasTextFilters();
+  };
+
   const fetchAllUsers = useCallback(async () => {
     const response = await api.get('/users');
-    setUsers(
-      response.data.filter((listedUser) => listedUser._id !== user._id)
+    const filteredUsers = response.data.filter(
+      (listedUser) => listedUser._id !== user._id
     );
+    setUsers(filteredUsers);
     setIsSearchMode(false);
+    return filteredUsers.length;
   }, [user]);
+
+  const fetchUsers = useCallback(
+    async (onlyFriends = friendsOnly) => {
+      if (shouldUseSearch(onlyFriends)) {
+        const response = await api.get('/users/search', {
+          params: buildSearchParams(onlyFriends)
+        });
+        setUsers(response.data);
+        setIsSearchMode(true);
+        return response.data.length;
+      }
+
+      return fetchAllUsers();
+    },
+    [friendsOnly, fetchAllUsers, user]
+  );
 
   useEffect(() => {
     if (!user) {
@@ -58,24 +111,8 @@ const Users = () => {
     setSearching(true);
 
     try {
-      const params = {};
-
-      if (searchUsername.trim()) {
-        params.username = searchUsername.trim();
-      }
-
-      if (searchFullName.trim()) {
-        params.fullName = searchFullName.trim();
-      }
-
-      if (searchEmail.trim()) {
-        params.email = searchEmail.trim();
-      }
-
-      const response = await api.get('/users/search', { params });
-      setUsers(response.data);
-      setIsSearchMode(true);
-      setMessage(`Found ${response.data.length} user(s).`);
+      const count = await fetchUsers();
+      setMessage(`Found ${count} user(s).`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to search users');
     } finally {
@@ -83,16 +120,43 @@ const Users = () => {
     }
   };
 
-  const handleClearSearch = async () => {
-    setSearchUsername('');
-    setSearchFullName('');
-    setSearchEmail('');
+  const handleFriendsOnlyChange = async (event) => {
+    const checked = event.target.checked;
+    setFriendsOnly(checked);
     setError('');
     setMessage('');
 
     try {
       setLoading(true);
-      await fetchAllUsers();
+      const count = await fetchUsers(checked);
+      if (checked || hasTextFilters()) {
+        setMessage(`Found ${count} user(s).`);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearSearch = async () => {
+    setSearchUsername('');
+    setSearchFullName('');
+    setError('');
+    setMessage('');
+
+    try {
+      setLoading(true);
+
+      if (friendsOnly) {
+        const response = await api.get('/users/search', {
+          params: { friendsOnly: 'true' }
+        });
+        setUsers(response.data);
+        setIsSearchMode(true);
+      } else {
+        await fetchAllUsers();
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load users');
     } finally {
@@ -109,6 +173,7 @@ const Users = () => {
       const response = await api.post(`/users/${userId}/friend`);
       updateUser(response.data.user);
       setMessage(response.data.message);
+      await fetchUsers();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add friend');
     } finally {
@@ -125,11 +190,44 @@ const Users = () => {
       const response = await api.delete(`/users/${userId}/friend`);
       updateUser(response.data.user);
       setMessage(response.data.message);
+      await fetchUsers();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove friend');
     } finally {
       setActionUserId(null);
     }
+  };
+
+  const getEmptyMessage = () => {
+    if (friendsOnly && hasTextFilters()) {
+      return 'No friends matched your search.';
+    }
+
+    if (friendsOnly) {
+      return 'You have no friends yet. Add friends from the user list.';
+    }
+
+    if (isSearchMode) {
+      return 'No users matched your search.';
+    }
+
+    return 'No users found.';
+  };
+
+  const getListTitle = () => {
+    if (friendsOnly && hasTextFilters()) {
+      return 'Friends Search Results';
+    }
+
+    if (friendsOnly) {
+      return 'Friends';
+    }
+
+    if (isSearchMode) {
+      return 'Search Results';
+    }
+
+    return 'All Users';
   };
 
   if (authLoading) {
@@ -159,57 +257,72 @@ const Users = () => {
 
       <section className="users-section">
         <h2>Search Users</h2>
-        <form className="user-search-form" onSubmit={handleSearchUsers}>
-          <label>
-            Username
-            <input
-              type="text"
-              value={searchUsername}
-              onChange={(event) => setSearchUsername(event.target.value)}
-              placeholder="Search by username"
-            />
-          </label>
+        <div className="search-card">
+          <form className="user-search-form" onSubmit={handleSearchUsers}>
+            <div className="search-grid">
+              <label>
+                Username
+                <input
+                  type="text"
+                  value={searchUsername}
+                  onChange={(event) => setSearchUsername(event.target.value)}
+                  placeholder="Search by username"
+                />
+              </label>
 
-          <label>
-            Full Name
-            <input
-              type="text"
-              value={searchFullName}
-              onChange={(event) => setSearchFullName(event.target.value)}
-              placeholder="Search by full name"
-            />
-          </label>
+              <label>
+                Full Name
+                <input
+                  type="text"
+                  value={searchFullName}
+                  onChange={(event) => setSearchFullName(event.target.value)}
+                  placeholder="Search by full name"
+                />
+              </label>
 
-          <label>
-            Email
-            <input
-              type="text"
-              value={searchEmail}
-              onChange={(event) => setSearchEmail(event.target.value)}
-              placeholder="Search by email"
-            />
-          </label>
+              <label>
+                Email
+                <input
+                  type="text"
+                  value={searchEmail}
+                  onChange={(event) => setSearchEmail(event.target.value)}
+                  placeholder="Search by email"
+                />
+              </label>
+            </div>
 
-          <div className="user-search-actions">
-            <button type="submit" disabled={searching}>
-              {searching ? 'Searching...' : 'Search'}
-            </button>
-            {isSearchMode && (
-              <button type="button" onClick={handleClearSearch}>
-                Clear Search
-              </button>
-            )}
-          </div>
-        </form>
+            <div className="search-actions">
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={friendsOnly}
+                  onChange={handleFriendsOnlyChange}
+                />
+                <span>Friends only</span>
+              </label>
+
+              <div className="search-buttons">
+                <button type="submit" disabled={searching}>
+                  {searching ? 'Searching...' : 'Search'}
+                </button>
+                {(isSearchMode || hasTextFilters()) && (
+                  <button type="button" onClick={handleClearSearch}>
+                    Clear Search
+                  </button>
+                )}
+              </div>
+            </div>
+          </form>
+        </div>
       </section>
 
       <section className="users-section">
-        <h2>{isSearchMode ? 'Search Results' : 'All Users'}</h2>
+        <h2>{getListTitle()}</h2>
 
         {loading ? (
           <p>Loading users...</p>
         ) : users.length === 0 ? (
-          <p>{isSearchMode ? 'No users matched your search.' : 'No users found.'}</p>
+          <p>{getEmptyMessage()}</p>
         ) : (
           <div className="users-list">
             {users.map((listedUser) => (
@@ -217,6 +330,10 @@ const Users = () => {
                 <UserBadge user={listedUser} />
                 <p>
                   <strong>Email:</strong> {listedUser.email}
+                </p>
+                <p className="friend-status">
+                  <strong>Status:</strong>{' '}
+                  {isFriend(listedUser._id) ? 'Friend' : 'Not a friend'}
                 </p>
 
                 {isFriend(listedUser._id) ? (

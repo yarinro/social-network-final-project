@@ -149,7 +149,7 @@ const getUserById = async (req, res) => {
 
 const searchUsers = async (req, res) => {
   try {
-    const { username, fullName, email } = req.query;
+    const { username, fullName, email, friendsOnly } = req.query;
     const filter = { _id: { $ne: req.user._id } };
 
     if (username) {
@@ -162,6 +162,16 @@ const searchUsers = async (req, res) => {
 
     if (email) {
       filter.email = { $regex: email, $options: 'i' };
+    }
+
+    if (friendsOnly === 'true') {
+      const currentUser = await User.findById(req.user._id).select('friends');
+
+      if (!currentUser || currentUser.friends.length === 0) {
+        return res.json([]);
+      }
+
+      filter._id = { $in: currentUser.friends };
     }
 
     const users = await User.find(filter)
