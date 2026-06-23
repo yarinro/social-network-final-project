@@ -25,6 +25,10 @@ const GroupDetails = () => {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [message, setMessage] = useState('');
+  const [content, setContent] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const fetchGroupPosts = useCallback(async (activeFilters = emptyPostFilters) => {
     const response = await api.get(`/groups/${id}/posts`, {
@@ -172,6 +176,65 @@ const GroupDetails = () => {
     }
   };
 
+  const handlePostUpdated = (updatedPost) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post._id === updatedPost._id ? updatedPost : post
+      )
+    );
+  };
+
+  const canCreatePost = () => {
+    if (!user || !group) {
+      return false;
+    }
+
+    const userId = user._id.toString();
+    const managerId = (group.manager?._id || group.manager)?.toString();
+
+    if (managerId === userId || user.role === 'admin') {
+      return true;
+    }
+
+    return (group.members || []).some(
+      (member) => (member._id || member).toString() === userId
+    );
+  };
+
+  const handleCreatePost = async (event) => {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+    setCreating(true);
+
+    try {
+      await api.post('/posts', {
+        group: id,
+        content: content.trim(),
+        imageUrl: imageUrl.trim(),
+        videoUrl: videoUrl.trim()
+      });
+
+      setContent('');
+      setImageUrl('');
+      setVideoUrl('');
+      setMessage('Post created successfully.');
+
+      try {
+        setLoadingPosts(true);
+        await fetchGroupPosts(filters);
+      } catch (err) {
+        setError(getApiErrorMessage(err, 'Post created but failed to refresh the list'));
+      } finally {
+        setLoadingPosts(false);
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Failed to create post'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="page">
@@ -259,6 +322,48 @@ const GroupDetails = () => {
       <section className="posts-section">
         <h2>Group Posts</h2>
 
+        {canCreatePost() && (
+          <div className="group-create-post-card">
+            <h3>Create Post in this Group</h3>
+            <form className="group-create-post-form" onSubmit={handleCreatePost}>
+              <label>
+                Content
+                <textarea
+                  value={content}
+                  onChange={(event) => setContent(event.target.value)}
+                  rows="4"
+                  placeholder="Write your post..."
+                  required
+                />
+              </label>
+
+              <label>
+                Image URL (optional)
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(event) => setImageUrl(event.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                />
+              </label>
+
+              <label>
+                Video URL (optional)
+                <input
+                  type="url"
+                  value={videoUrl}
+                  onChange={(event) => setVideoUrl(event.target.value)}
+                  placeholder="https://example.com/video.mp4"
+                />
+              </label>
+
+              <button type="submit" disabled={creating}>
+                {creating ? 'Posting...' : 'Create Post'}
+              </button>
+            </form>
+          </div>
+        )}
+
         <PostFilterForm
           filters={filters}
           onChange={setFilters}
@@ -288,6 +393,7 @@ const GroupDetails = () => {
                 onCancelEdit={cancelEdit}
                 onUpdatePost={handleUpdatePost}
                 onDeletePost={handleDeletePost}
+                onPostUpdated={handlePostUpdated}
                 onEditContentChange={setEditContent}
                 onEditImageUrlChange={setEditImageUrl}
                 onEditVideoUrlChange={setEditVideoUrl}

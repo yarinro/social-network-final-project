@@ -1,7 +1,7 @@
 {
   "name": "social-network-backend",
   "version": "1.0.0",
-  "description": "Backend skeleton for a web-based social network final project.",
+  "description": "Backend API for the social network final project (Express, MongoDB, Socket.IO, JWT).",
   "main": "server.js",
   "scripts": {
     "start": "node --use-system-ca server.js",

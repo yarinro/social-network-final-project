@@ -1,2 +1,9 @@
 node_modules/
+server/node_modules/
+client/node_modules/
 .env
+server/.env
+client/.env
+client/build/
+.DS_Store
+npm-debug.log*

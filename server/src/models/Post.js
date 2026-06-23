@@ -28,6 +28,15 @@ const postSchema = new mongoose.Schema(
       type: String,
       enum: ['public', 'group'],
       default: 'group'
+    },
+    likes: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User'
+        }
+      ],
+      default: []
     }
   },
   {

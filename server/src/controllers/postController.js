@@ -120,7 +120,7 @@ const createPost = async (req, res) => {
   try {
     const { group, content, imageUrl, videoUrl, visibility } = req.body;
 
-    if (!group || !content) {
+    if (!group || !content?.trim()) {
       return res.status(400).json({ message: 'Group and content are required' });
     }
 
@@ -130,18 +130,24 @@ const createPost = async (req, res) => {
       return res.status(404).json({ message: 'Group not found' });
     }
 
+    const userId = req.user._id.toString();
     const isMember = existingGroup.members.some(
-      (memberId) => memberId.toString() === req.user._id.toString()
+      (memberId) => memberId.toString() === userId
     );
+    const isManager = existingGroup.manager.toString() === userId;
+    const isAdmin = req.user.role === 'admin';
 
-    if (!isMember) {
-      return res.status(403).json({ message: 'Only group members can create posts in this group' });
+    if (!isMember && !isManager && !isAdmin) {
+      return res.status(403).json({
+        message:
+          'Only group members, the group manager, or admins can create posts in this group'
+      });
     }
 
     const post = await Post.create({
       author: req.user._id,
       group,
-      content,
+      content: content.trim(),
       imageUrl: imageUrl || '',
       videoUrl: videoUrl || '',
       visibility: visibility || 'group'
@@ -358,6 +364,37 @@ const deletePost = async (req, res) => {
   }
 };
 
+const toggleLike = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const userId = req.user._id;
+    const alreadyLiked = (post.likes || []).some(
+      (likeId) => likeId.toString() === userId.toString()
+    );
+
+    if (alreadyLiked) {
+      post.likes = post.likes.filter(
+        (likeId) => likeId.toString() !== userId.toString()
+      );
+    } else {
+      post.likes.push(userId);
+    }
+
+    await post.save();
+
+    const updatedPost = await populatePost(Post.findById(post._id));
+
+    res.json(updatedPost);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createPost,
   getPosts,
@@ -367,5 +404,6 @@ module.exports = {
   getGroupPosts,
   getPostById,
   updatePost,
-  deletePost
+  deletePost,
+  toggleLike
 };

@@ -194,6 +194,14 @@ const Posts = () => {
     }
   };
 
+  const handlePostUpdated = (updatedPost) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post._id === updatedPost._id ? updatedPost : post
+      )
+    );
+  };
+
   const handleDeletePost = async (postId) => {
     const confirmed = window.confirm('Are you sure you want to delete this post?');
 
@@ -357,6 +365,7 @@ const Posts = () => {
                 onCancelEdit={cancelEdit}
                 onUpdatePost={handleUpdatePost}
                 onDeletePost={handleDeletePost}
+                onPostUpdated={handlePostUpdated}
                 onEditContentChange={setEditContent}
                 onEditImageUrlChange={setEditImageUrl}
                 onEditVideoUrlChange={setEditVideoUrl}

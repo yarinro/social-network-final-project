@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import api from '../api/api';
+import { getApiErrorMessage } from '../utils/apiError';
 import UserBadge from './UserBadge';
 import GroupLink from './GroupLink';
 
@@ -14,13 +17,23 @@ const PostCard = ({
   onCancelEdit,
   onUpdatePost,
   onDeletePost,
+  onPostUpdated,
   onEditContentChange,
   onEditImageUrlChange,
   onEditVideoUrlChange
 }) => {
+  const [liking, setLiking] = useState(false);
+  const [likeError, setLikeError] = useState('');
+
   if (!post || !currentUser?._id) {
     return null;
   }
+
+  const likes = post.likes || [];
+  const likeCount = likes.length;
+  const isLiked = likes.some(
+    (likeId) => (likeId._id || likeId).toString() === currentUser._id.toString()
+  );
 
   const isOwnPost = () => {
     const authorId = post.author?._id || post.author;
@@ -49,6 +62,20 @@ const PostCard = ({
   };
 
   const showPostActions = isOwnPost() || canDeletePost();
+
+  const handleToggleLike = async () => {
+    setLikeError('');
+    setLiking(true);
+
+    try {
+      const response = await api.patch(`/posts/${post._id}/like`);
+      onPostUpdated?.(response.data);
+    } catch (err) {
+      setLikeError(getApiErrorMessage(err, 'Failed to update like'));
+    } finally {
+      setLiking(false);
+    }
+  };
 
   const renderPostMedia = () => (
     <>
@@ -129,6 +156,22 @@ const PostCard = ({
         <>
           <p className="post-content">{post.content || ''}</p>
           {renderPostMedia()}
+
+          <div className="post-like-row">
+            <button
+              type="button"
+              className={isLiked ? 'like-button liked' : 'like-button'}
+              onClick={handleToggleLike}
+              disabled={liking}
+            >
+              {liking ? 'Updating...' : isLiked ? 'Unlike' : 'Like'}
+            </button>
+            <span className="like-count">
+              {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+            </span>
+          </div>
+
+          {likeError && <p className="error-message post-like-error">{likeError}</p>}
 
           {showPostActions && (
             <div className="post-actions">
