@@ -17,10 +17,12 @@ const Messages = () => {
   const [error, setError] = useState('');
   const selectedFriendRef = useRef(null);
 
+  // Keep selected friend available inside the socket listener (avoids stale closure)
   useEffect(() => {
     selectedFriendRef.current = selectedFriend;
   }, [selectedFriend]);
 
+  // Load friends list from the user's profile
   useEffect(() => {
     if (authLoading || !user) {
       if (!authLoading) {
@@ -46,6 +48,7 @@ const Messages = () => {
     fetchFriends();
   }, [user, authLoading]);
 
+  // Register with Socket.IO and append incoming messages to the open conversation
   useEffect(() => {
     if (authLoading || !user?._id) {
       return;

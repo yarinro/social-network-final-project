@@ -39,6 +39,7 @@ const GroupDetails = () => {
     return postList.length;
   }, [id]);
 
+  // Load group details from the URL id
   useEffect(() => {
     if (authLoading || !user) {
       return;
@@ -62,6 +63,7 @@ const GroupDetails = () => {
     loadGroup();
   }, [user, authLoading, id]);
 
+  // Load posts after the group is loaded
   useEffect(() => {
     if (authLoading || !user || !group) {
       return;

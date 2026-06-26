@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
+  // On app load, restore the logged-in user from the saved JWT token
   useEffect(() => {
     const loadUser = async () => {
       const savedToken = localStorage.getItem('token');

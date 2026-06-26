@@ -59,6 +59,7 @@ const Posts = () => {
     setGroupId((current) => current || (groups.length > 0 ? groups[0]._id : ''));
   }, [user]);
 
+  // Load feed or my posts when the page opens or the tab changes
   useEffect(() => {
     if (authLoading) {
       return;

@@ -1,5 +1,6 @@
 const Post = require('../models/Post');
 
+// Count posts per group for the D3 bar chart
 const getPostsByGroup = async (req, res) => {
   try {
     const data = await Post.aggregate([
@@ -40,6 +41,7 @@ const getPostsByGroup = async (req, res) => {
   }
 };
 
+// Count posts per month for the D3 line chart
 const getPostsByMonth = async (req, res) => {
   try {
     const data = await Post.aggregate([

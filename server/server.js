@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 5000;
 
 connectDB();
 
+// HTTP server is needed so Express and Socket.IO share the same port
 const server = http.createServer(app);
 initSocket(server);
 

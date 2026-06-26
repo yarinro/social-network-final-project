@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// Protect routes: verify JWT and attach the logged-in user to req.user
 const protect = async (req, res, next) => {
   try {
     let token;

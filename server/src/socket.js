@@ -2,6 +2,7 @@ const Message = require('./models/Message');
 const User = require('./models/User');
 
 const userFields = 'username fullName email';
+// Maps userId -> socket.id so we can send real-time messages to online users
 const userSockets = new Map();
 
 const populateMessage = (query) => {
@@ -19,6 +20,7 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
+    // Client tells the server which user is connected on this socket
     socket.on('registerUser', (userId) => {
       if (!userId) {
         return;
@@ -28,6 +30,7 @@ const initSocket = (server) => {
       userSockets.set(socket.userId, socket.id);
     });
 
+    // Save message to MongoDB, then push it to sender and receiver in real time
     socket.on('sendMessage', async ({ receiverId, content }, callback) => {
       try {
         const senderId = socket.userId;

@@ -7,6 +7,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+// Data for the D3 charts on the Statistics page
 router.get('/posts-by-group', protect, getPostsByGroup);
 router.get('/posts-by-month', protect, getPostsByMonth);
 

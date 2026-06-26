@@ -74,6 +74,21 @@ npm start
 
 The React app runs at `http://localhost:3000`.
 
+## Environment Variables
+
+Create `server/.env` from `server/.env.example`:
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Backend port (default 5000) |
+| `MONGO_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret for signing JWT tokens |
+| `CLIENT_URL` | Frontend URL (reference; Socket.IO uses `http://localhost:3000`) |
+
+## Demo Users
+
+There are no built-in demo users. Register your own accounts for testing (for example User A and User B).
+
 ## Manual Testing Flow
 
 1. Register two users (for example User A and User B).
@@ -91,5 +106,11 @@ The React app runs at `http://localhost:3000`.
 
 ## Notes for Submission
 
-- Do **not** include `node_modules/`, `client/build/`, `.env` files, or the `.git` folder in your ZIP.
-- Copy `.env.example` to `.env` locally and fill in your own values before running.
+Create a ZIP with only:
+
+- `client/` (without `node_modules` and `build`)
+- `server/` (without `node_modules`, include `.env.example`, not `.env`)
+- `README.md`
+- `.gitignore`
+
+Do **not** include: `node_modules/`, `client/build/`, `.env` files, or `.git/`.

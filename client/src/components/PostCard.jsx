@@ -63,6 +63,7 @@ const PostCard = ({
 
   const showPostActions = isOwnPost() || canDeletePost();
 
+  // Toggle like via API and update the parent post list
   const handleToggleLike = async () => {
     setLikeError('');
     setLiking(true);
@@ -79,6 +80,7 @@ const PostCard = ({
 
   const renderPostMedia = () => (
     <>
+      {/* Optional image/video URLs stored on the post */}
       {post.imageUrl?.trim() && (
         <img
           src={post.imageUrl}

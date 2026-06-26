@@ -18,6 +18,7 @@ app.get('/', (req, res) => {
   res.json({ message: 'Social Network API is running' });
 });
 
+// Main API route groups
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);

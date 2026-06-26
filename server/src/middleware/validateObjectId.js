@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Reject invalid MongoDB ids before they reach the controller
 const validateObjectId =
   (...paramNames) =>
   (req, res, next) => {

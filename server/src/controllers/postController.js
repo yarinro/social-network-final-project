@@ -19,6 +19,7 @@ const getPostSort = (query) => {
   return { [sortBy]: sortOrder };
 };
 
+// Build MongoDB filters from query string (text, author, dates, media, etc.)
 const buildPostQueryFilter = async (query, options = {}) => {
   const { includeGroup = false } = options;
   const filter = {};
@@ -95,6 +96,7 @@ const buildPostQueryFilter = async (query, options = {}) => {
   return filter;
 };
 
+// Author, group manager, or admin can edit a post
 const canModifyPost = (post, user, group) => {
   const isAuthor = post.author.toString() === user._id.toString();
   const isManager = group && group.manager.toString() === user._id.toString();
@@ -103,6 +105,7 @@ const canModifyPost = (post, user, group) => {
   return isAuthor || isManager || isAdmin;
 };
 
+// Delete is allowed for author, group manager, or admin
 const canDeletePost = (post, user, group) => {
   const isAuthor = post.author.toString() === user._id.toString();
   const isAdmin = user.role === 'admin';
@@ -171,6 +174,7 @@ const getPosts = async (req, res) => {
   }
 };
 
+// Feed: own posts, member-group posts, and friends' posts (not private non-member groups)
 const getFeed = async (req, res) => {
   try {
     const currentUser = await User.findById(req.user._id);
@@ -364,6 +368,7 @@ const deletePost = async (req, res) => {
   }
 };
 
+// Add or remove the current user's id from post.likes
 const toggleLike = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);

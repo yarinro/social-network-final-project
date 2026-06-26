@@ -10,6 +10,7 @@ const { validateObjectId } = require('../middleware/validateObjectId');
 
 const router = express.Router();
 
+// REST endpoints for stored messages (chat also uses Socket.IO)
 router.post('/', protect, createMessage);
 router.get(
   '/conversation/:userId',

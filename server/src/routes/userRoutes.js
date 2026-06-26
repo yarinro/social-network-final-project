@@ -15,6 +15,7 @@ const { validateObjectId } = require('../middleware/validateObjectId');
 
 const router = express.Router();
 
+// Static routes must come before /:id so they are not treated as user ids
 router.get('/me', protect, getMyProfile);
 router.patch('/me', protect, updateMyProfile);
 router.delete('/me', protect, deleteMyAccount);

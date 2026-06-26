@@ -147,6 +147,7 @@ const getUserById = async (req, res) => {
   }
 };
 
+// Search users by username/fullName/email; friendsOnly limits results to the user's friends
 const searchUsers = async (req, res) => {
   try {
     const { username, fullName, email, friendsOnly } = req.query;

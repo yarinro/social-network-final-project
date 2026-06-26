@@ -16,6 +16,7 @@ const { validateObjectId } = require('../middleware/validateObjectId');
 
 const router = express.Router();
 
+// /search and /my must stay before /:id
 router.post('/', protect, createGroup);
 router.get('/search', protect, searchGroups);
 router.get('/my', protect, getMyGroups);

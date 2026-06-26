@@ -15,6 +15,7 @@ const { validateObjectId } = require('../middleware/validateObjectId');
 
 const router = express.Router();
 
+// Feed, my posts, and like routes must stay before /:id
 router.post('/', protect, createPost);
 router.get('/feed', protect, getFeed);
 router.get('/my', protect, getMyPosts);

@@ -3,23 +3,12 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 
 const userFields = 'username fullName profileImageUrl';
-const publicUserFields = 'username fullName profileImageUrl';
 
 const populateGroup = (query, includePending = true) => {
   query.populate('manager', userFields).populate('members', userFields);
 
   if (includePending) {
     query.populate('pendingMembers', userFields);
-  }
-
-  return query;
-};
-
-const populateGroupPublic = (query, includePending = false) => {
-  query.populate('manager', publicUserFields).populate('members', publicUserFields);
-
-  if (includePending) {
-    query.populate('pendingMembers', publicUserFields);
   }
 
   return query;
@@ -33,6 +22,7 @@ const canManageGroup = (group, user) => {
   return isManager || isAdmin;
 };
 
+// Public groups are visible to everyone; private groups only to members/manager/admin
 const canViewGroup = (group, user) => {
   if (!group.isPrivate) {
     return true;
@@ -126,6 +116,7 @@ const getGroups = async (req, res) => {
   }
 };
 
+// Groups where the logged-in user is manager or member
 const getMyGroups = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -199,8 +190,8 @@ const getGroupById = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id).populate(
       'manager',
-      publicUserFields
-    ).populate('members', publicUserFields);
+      userFields
+    ).populate('members', userFields);
 
     if (!group) {
       return res.status(404).json({ message: 'Group not found' });
@@ -215,7 +206,7 @@ const getGroupById = async (req, res) => {
     const includePending = canManageGroup(group, req.user);
 
     if (includePending) {
-      await group.populate('pendingMembers', publicUserFields);
+      await group.populate('pendingMembers', userFields);
     }
 
     res.json(formatGroupDetails(group, includePending));
@@ -289,6 +280,7 @@ const deleteGroup = async (req, res) => {
   }
 };
 
+// Public groups: join immediately. Private groups: add to pendingMembers for manager approval
 const joinGroup = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);

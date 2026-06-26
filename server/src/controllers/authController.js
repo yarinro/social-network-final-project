@@ -14,6 +14,7 @@ const createToken = (userId) => {
   return jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: '7d' });
 };
 
+// Remove password hash before sending user data to the client
 const sanitizeUser = (user) => {
   const userObj = user.toObject();
   delete userObj.passwordHash;

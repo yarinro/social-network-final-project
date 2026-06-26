@@ -13,6 +13,7 @@ const Statistics = () => {
   const groupChartRef = useRef(null);
   const monthChartRef = useRef(null);
 
+  // Fetch chart data from the stats API
   useEffect(() => {
     if (authLoading || !user) {
       return;
@@ -42,6 +43,7 @@ const Statistics = () => {
     fetchStats();
   }, [user, authLoading]);
 
+  // D3 bar chart: posts per group
   useEffect(() => {
     if (!groupChartRef.current || postsByGroup.length === 0) {
       return;
@@ -107,6 +109,7 @@ const Statistics = () => {
       .text('Posts per Group');
   }, [postsByGroup]);
 
+  // D3 line chart: posts per month
   useEffect(() => {
     if (!monthChartRef.current || postsByMonth.length === 0) {
       return;

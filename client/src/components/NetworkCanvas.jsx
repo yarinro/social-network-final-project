@@ -27,6 +27,7 @@ const CONNECTIONS = [
 const NetworkCanvas = () => {
   const canvasRef = useRef(null);
 
+  // Animate moving nodes and connection lines on HTML Canvas
   useEffect(() => {
     const canvas = canvasRef.current;
 
