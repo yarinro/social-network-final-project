@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../api/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import UserBadge from './UserBadge';
@@ -24,6 +24,11 @@ const PostCard = ({
 }) => {
   const [liking, setLiking] = useState(false);
   const [likeError, setLikeError] = useState('');
+  const [videoError, setVideoError] = useState(false);
+
+  useEffect(() => {
+    setVideoError(false);
+  }, [post?.videoUrl]);
 
   if (!post || !currentUser?._id) {
     return null;
@@ -92,11 +97,25 @@ const PostCard = ({
         />
       )}
 
-      {post.videoUrl?.trim() && (
-        <video src={post.videoUrl} controls className="post-video">
-          Your browser does not support the video tag.
-        </video>
-      )}
+      {post.videoUrl?.trim() &&
+        (videoError ? (
+          <div className="post-video-error">
+            <p>The video could not be loaded.</p>
+            {process.env.NODE_ENV === 'development' && (
+              <p className="post-video-error-url">{post.videoUrl}</p>
+            )}
+          </div>
+        ) : (
+          <video
+            controls
+            preload="metadata"
+            className="post-video"
+            onError={() => setVideoError(true)}
+          >
+            <source src={post.videoUrl} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        ))}
     </>
   );
 

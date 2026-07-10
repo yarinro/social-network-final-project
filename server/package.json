@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node --use-system-ca server.js",
     "dev": "node --use-system-ca node_modules/nodemon/bin/nodemon.js server.js",
-    "test:mongo": "node --use-system-ca scripts/testMongo.js"
+    "test:mongo": "node --use-system-ca scripts/testMongo.js",
+    "seed": "node --use-system-ca scripts/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

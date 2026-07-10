@@ -85,9 +85,53 @@ Create `server/.env` from `server/.env.example`:
 | `JWT_SECRET` | Secret for signing JWT tokens |
 | `CLIENT_URL` | Frontend URL (reference; Socket.IO uses `http://localhost:3000`) |
 
-## Demo Users
+## Demo Data and Seeder
 
-There are no built-in demo users. Register your own accounts for testing (for example User A and User B).
+To load a full deterministic demo database for defense:
+
+```bash
+cd server
+npm run seed
+```
+
+This clears existing Users, Groups, Posts, and Messages, then creates:
+
+- 10 demo users
+- 6 groups (4 public, 2 private)
+- ~37 posts across at least 6 months
+- ~23 messages between several friend pairs
+
+### Main demo accounts
+
+| Email | Role / purpose |
+|-------|----------------|
+| `admin@demo.com` | Admin account |
+| `maya@demo.com` | Main group manager (Web Developers, Startup Founders) |
+| `alex@demo.com` | Regular member with posts, friends, and messages |
+| `nina@demo.com` | Pending member on private groups |
+
+Shared password for all demo users:
+
+```text
+Demo123!
+```
+
+### Known search targets
+
+- **Group search:** `Web Developers` — public, manager name contains `Maya`, at least 4 members
+- **Post search:** Alex Johnson post in Web Developers containing `React`, with an image, several likes, dated **2026-03-10**
+
+### Suggested Defense Demo
+
+1. Login as Alex (`alex@demo.com`) and show feed, filters, likes, friends, and messages.
+2. Search users using username, full name, and email.
+3. Search for the known React post using multiple filters (text, author, group, has image).
+4. Search for Web Developers using name, privacy, manager, and minimum members.
+5. Login as Nina (`nina@demo.com`) and show the pending private-group state.
+6. Login as Maya (`maya@demo.com`) and approve Nina.
+7. Demonstrate that Maya can manage/delete posts in a group she manages.
+8. Login as the admin (`admin@demo.com`) and demonstrate admin permissions.
+9. Open Statistics and show posts per group and posts per month.
 
 ## Manual Testing Flow
 
