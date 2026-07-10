@@ -1,13 +1,49 @@
+/**
+ * @file Groups.jsx
+ * @description Groups listing and management page for the MERN social-network client.
+ *
+ * Purpose:
+ *   Central UI for discovering, creating, searching, joining, editing, and deleting groups.
+ *   Authenticated users can switch between an "All Groups" catalog and a "My Groups" subset
+ *   (groups they manage or belong to), and managers/admins can approve private join requests.
+ *
+ * Responsibilities:
+ *   - Fetch group lists from REST (`GET /groups`, `GET /groups/my`, `GET /groups/search`)
+ *   - Create groups (`POST /groups`) and update/delete when the user is manager or admin
+ *   - Join public groups immediately or request to join private groups (`POST .../join`)
+ *   - Approve pending members for private groups (`POST .../approve/:userId`)
+ *   - Enrich manager/admin list rows with full detail (`GET /groups/:id`) so pendingMembers appear
+ *   - Render membership status (Manager / Member / Pending / Not joined) per card
+ *
+ * Data flow:
+ *   AuthContext.user → permission helpers (isManager, isMember, isPending, canManageGroup)
+ *   → fetchGroups / performGroupSearch → enrichGroups (detail fetch for managers)
+ *   → groups state → renderGroupCard UI; mutations update local list via updateGroupInList
+ *
+ * Key concepts for defense:
+ *   - All vs My tabs (`view`): controls which endpoint/filter is used; search re-runs when tab changes
+ *   - Public join vs private request: same join endpoint; UI label and pending state differ by isPrivate
+ *   - Manager vs admin: both can edit/delete/approve; membership helpers normalize populated vs raw IDs
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import UserBadge from '../components/UserBadge';
 import GroupLink from '../components/GroupLink';
 
+/**
+ * Groups page component: list, search, create, join, and manage groups.
+ * Holds all list/search/edit UI state and wires REST mutations back into the local `groups` array.
+ *
+ * @returns {JSX.Element} Groups page
+ */
 const Groups = () => {
   const { user } = useAuth();
   const [groups, setGroups] = useState([]);
+  /** @type {'all' | 'my'} Active list tab — All Groups vs My Groups */
   const [view, setView] = useState('all');
+  /** When true, list shows search results and the view-change effect skips a normal refetch */
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -30,6 +66,13 @@ const Groups = () => {
   const [approvingId, setApprovingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
+  /**
+   * Permission helper: true when the logged-in user is this group's manager.
+   * Compares stringified IDs so both populated `{ _id }` and raw ObjectId strings work.
+   *
+   * @param {object} group - Group document (manager may be populated or an id)
+   * @returns {boolean}
+   */
   const isManager = useCallback(
     (group) => {
       if (!user || !group.manager) {
@@ -42,11 +85,23 @@ const Groups = () => {
     [user]
   );
 
+  /**
+   * Permission helper: manager of the group OR site-wide admin may edit/delete/approve.
+   *
+   * @param {object} group
+   * @returns {boolean}
+   */
   const canManageGroup = useCallback(
     (group) => isManager(group) || user?.role === 'admin',
     [isManager, user]
   );
 
+  /**
+   * Permission helper: true if the current user appears in `group.members`.
+   *
+   * @param {object} group
+   * @returns {boolean}
+   */
   const isMember = useCallback(
     (group) => {
       if (!user) {
@@ -60,6 +115,12 @@ const Groups = () => {
     [user]
   );
 
+  /**
+   * Permission helper: true if the user is waiting for approval on a private group.
+   *
+   * @param {object} group
+   * @returns {boolean}
+   */
   const isPending = useCallback(
     (group) => {
       if (!user || !group.pendingMembers) {
@@ -73,6 +134,13 @@ const Groups = () => {
     [user]
   );
 
+  /**
+   * For groups the user can manage, replace list stubs with full detail payloads
+   * (includes `pendingMembers` needed for the approve UI). Non-managers keep the list row as-is.
+   *
+   * @param {object[]} groupsList - Groups from list/search endpoints
+   * @returns {Promise<object[]>} Same length array, possibly enriched
+   */
   const enrichGroups = useCallback(
     async (groupsList) => {
       if (!user) {
@@ -97,6 +165,13 @@ const Groups = () => {
     [user, canManageGroup]
   );
 
+  /**
+   * Filter helper for the "My Groups" tab: keep groups where the user is manager or member.
+   * Used when the API returns a full list that must be narrowed client-side, or to scope search results.
+   *
+   * @param {object[]} groupsList
+   * @returns {object[]}
+   */
   const filterMyGroups = useCallback(
     (groupsList) => {
       if (!user) {
@@ -110,15 +185,23 @@ const Groups = () => {
     [user, isManager, isMember]
   );
 
+  /**
+   * Loads the non-search list for the active tab.
+   * - `view === 'my'` and logged in → `GET /groups/my`
+   * - otherwise → `GET /groups`, then optionally client-filter if still on "my"
+   * Clears search mode after a successful load.
+   */
   const fetchGroups = useCallback(async () => {
     try {
       setError('');
       setLoading(true);
 
+      // All tab → /groups; My tab (when logged in) → dedicated /groups/my endpoint
       const endpoint = view === 'my' && user ? '/groups/my' : '/groups';
       const response = await api.get(endpoint);
       let groupsList = response.data || [];
 
+      // Fallback: if somehow on "my" but hit the public list, filter client-side
       if (view === 'my' && endpoint === '/groups') {
         groupsList = filterMyGroups(groupsList);
       }
@@ -133,6 +216,10 @@ const Groups = () => {
     }
   }, [view, user, enrichGroups, filterMyGroups]);
 
+  /**
+   * Refetch when the All/My tab changes, but skip while search results are showing
+   * (search mode is refreshed by handleViewChange instead).
+   */
   useEffect(() => {
     if (isSearchMode) {
       return;
@@ -141,6 +228,11 @@ const Groups = () => {
     fetchGroups();
   }, [view, isSearchMode, fetchGroups]);
 
+  /**
+   * Section heading for the list: Search Results, My Groups, or All Groups.
+   *
+   * @returns {string}
+   */
   const getListTitle = () => {
     if (isSearchMode) {
       return 'Search Results';
@@ -149,6 +241,11 @@ const Groups = () => {
     return view === 'my' ? 'My Groups' : 'All Groups';
   };
 
+  /**
+   * Empty-state copy depending on search mode vs All/My tab.
+   *
+   * @returns {string}
+   */
   const getEmptyMessage = () => {
     if (isSearchMode) {
       return 'No groups matched your search.';
@@ -161,6 +258,12 @@ const Groups = () => {
     return 'No groups found.';
   };
 
+  /**
+   * Human-readable membership label for a group card (Manager → Member → Pending → Not joined).
+   *
+   * @param {object} group
+   * @returns {string}
+   */
   const getUserStatus = (group) => {
     if (!user) {
       return 'Not joined';
@@ -181,10 +284,21 @@ const Groups = () => {
     return 'Not joined';
   };
 
+  /**
+   * Normalize a pending member entry (populated user or raw id) to a string id for keys/API calls.
+   *
+   * @param {object|string} pendingUser
+   * @returns {string}
+   */
   const getPendingUserId = (pendingUser) => {
     return (pendingUser._id || pendingUser).toString();
   };
 
+  /**
+   * Replace one group in local state after a successful mutation (join, approve, update).
+   *
+   * @param {object} updatedGroup - Full or partial group returned by the API
+   */
   const updateGroupInList = (updatedGroup) => {
     setGroups((prevGroups) =>
       prevGroups.map((group) =>
@@ -193,6 +307,11 @@ const Groups = () => {
     );
   };
 
+  /**
+   * Create-group form submit: `POST /groups`, then fetch detail and prepend to the list.
+   *
+   * @param {React.FormEvent} event
+   */
   const handleCreateGroup = async (event) => {
     event.preventDefault();
     setError('');
@@ -219,6 +338,14 @@ const Groups = () => {
     }
   };
 
+  /**
+   * Runs `GET /groups/search` with optional name, privacy, manager, and minMembers query params.
+   * If the active (or next) view is "my", results are narrowed with filterMyGroups.
+   * Sets `isSearchMode` so the normal list effect does not overwrite results.
+   *
+   * @param {'all' | 'my'} [activeView=view] - Tab to scope results against (used when switching tabs mid-search)
+   * @returns {Promise<number>} Number of groups after filtering
+   */
   const performGroupSearch = async (activeView = view) => {
     const params = {};
 
@@ -241,6 +368,7 @@ const Groups = () => {
     const response = await api.get('/groups/search', { params });
     let results = response.data || [];
 
+    // My tab + search: keep only groups the user manages or belongs to
     if (activeView === 'my') {
       results = filterMyGroups(results);
     }
@@ -250,6 +378,11 @@ const Groups = () => {
     return results.length;
   };
 
+  /**
+   * Search form submit handler; requires login, then calls performGroupSearch.
+   *
+   * @param {React.FormEvent} event
+   */
   const handleSearchGroups = async (event) => {
     event.preventDefault();
 
@@ -272,6 +405,9 @@ const Groups = () => {
     }
   };
 
+  /**
+   * Clears search fields and reloads the normal All/My list via fetchGroups.
+   */
   const handleClearSearch = () => {
     setSearchName('');
     setSearchPrivacy('all');
@@ -280,6 +416,13 @@ const Groups = () => {
     fetchGroups();
   };
 
+  /**
+   * All / My tab switcher.
+   * If currently in search mode, re-runs the same search scoped to the new tab;
+   * otherwise updates `view` so the fetchGroups effect loads the matching list.
+   *
+   * @param {'all' | 'my'} nextView
+   */
   const handleViewChange = async (nextView) => {
     if (nextView === view) {
       return;
@@ -287,6 +430,7 @@ const Groups = () => {
 
     setView(nextView);
 
+    // Stay in search mode: re-query and apply My filter if switching to My Groups
     if (isSearchMode && user) {
       setSearching(true);
 
@@ -307,6 +451,11 @@ const Groups = () => {
     }
   };
 
+  /**
+   * Enter inline edit mode for a group card (manager/admin only in the UI).
+   *
+   * @param {object} group
+   */
   const startEdit = (group) => {
     setEditingGroupId(group._id);
     setEditName(group.name);
@@ -316,6 +465,9 @@ const Groups = () => {
     setMessage('');
   };
 
+  /**
+   * Exit inline edit mode and reset edit form fields.
+   */
   const cancelEdit = () => {
     setEditingGroupId(null);
     setEditName('');
@@ -323,6 +475,12 @@ const Groups = () => {
     setEditIsPrivate(false);
   };
 
+  /**
+   * Save group edits: `PATCH /groups/:id`, then optionally re-fetch detail for managers.
+   *
+   * @param {React.FormEvent} event
+   * @param {string} groupId
+   */
   const handleUpdateGroup = async (event, groupId) => {
     event.preventDefault();
     setError('');
@@ -353,6 +511,11 @@ const Groups = () => {
     }
   };
 
+  /**
+   * Delete a group after confirm: `DELETE /groups/:id` (cascades related posts on the server).
+   *
+   * @param {string} groupId
+   */
   const handleDeleteGroup = async (groupId) => {
     const confirmed = window.confirm(
       'Are you sure you want to delete this group? All related posts will also be removed.'
@@ -377,6 +540,13 @@ const Groups = () => {
     }
   };
 
+  /**
+   * Join flow: `POST /groups/:id/join`.
+   * Public groups typically become members immediately; private groups move the user to pending.
+   * Server message (`joinMessage`) is shown as-is; list row is refreshed/enriched afterward.
+   *
+   * @param {string} groupId
+   */
   const handleJoinGroup = async (groupId) => {
     setError('');
     setMessage('');
@@ -402,6 +572,13 @@ const Groups = () => {
     }
   };
 
+  /**
+   * Manager/admin action: approve a pending private-group request.
+   * `POST /groups/:groupId/approve/:userId` returns the updated group for the list.
+   *
+   * @param {string} groupId
+   * @param {string} userId - Pending member's id
+   */
   const handleApproveMember = async (groupId, userId) => {
     setError('');
     setMessage('');
@@ -418,6 +595,12 @@ const Groups = () => {
     }
   };
 
+  /**
+   * Renders one group card: view mode, inline edit form, join/request button, and pending approvals.
+   *
+   * @param {object} group
+   * @returns {JSX.Element}
+   */
   const renderGroupCard = (group) => {
     const userStatus = getUserStatus(group);
     const pendingMembers = group.pendingMembers || [];
@@ -495,6 +678,7 @@ const Groups = () => {
               <strong>Your status:</strong> {userStatus}
             </p>
 
+            {/* Manager or site admin: edit / delete */}
             {user && canManageGroup(group) && (
               <div className="group-actions">
                 <button
@@ -515,6 +699,7 @@ const Groups = () => {
               </div>
             )}
 
+            {/* Not a member and not pending: Join (public) or Request to Join (private) */}
             {user && !isMember(group) && !isPending(group) && (
               <button
                 type="button"
@@ -534,6 +719,7 @@ const Groups = () => {
               <p className="group-status">Pending approval</p>
             )}
 
+            {/* Private-group queue: only visible to manager/admin after enrichGroups */}
             {user && canManageGroup(group) && pendingMembers.length > 0 && (
               <div className="manager-controls">
                 <h4>Pending requests</h4>
@@ -687,6 +873,7 @@ const Groups = () => {
       <section className="groups-section">
         <div className="groups-toolbar posts-toolbar">
           <h2>{getListTitle()}</h2>
+          {/* All Groups vs My Groups — only shown when logged in */}
           {user && (
             <div className="posts-view-buttons">
               <button

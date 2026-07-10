@@ -1,7 +1,43 @@
+/**
+ * @file NetworkCanvas.jsx
+ * @description Decorative HTML Canvas animation that visualizes a small "social network"
+ * of moving user nodes connected by edges — used as a branding/hero visual, not live data.
+ *
+ * Purpose:
+ * Draw and continuously animate a fixed set of circular nodes (labeled U1–U8) bouncing
+ * inside a canvas, with static index-pair connections redrawn each frame so the graph
+ * appears to move as a network.
+ *
+ * Responsibilities:
+ * - Create initial node positions/velocities sized to the canvas dimensions
+ * - Run a `requestAnimationFrame` loop that updates positions, bounces off margins,
+ *   redraws edges, then redraws nodes
+ * - Clean up the animation frame and stop drawing when the component unmounts
+ *
+ * Data flow:
+ * No props or API data. Node state lives in a closure inside `useEffect` (not React state)
+ * so each frame can mutate positions without triggering re-renders. The canvas DOM node
+ * is accessed via `useRef`.
+ *
+ * React concepts demonstrated:
+ * `useRef` for an imperative canvas handle, `useEffect` with an empty dependency array
+ * for mount-only side effects, and cleanup that cancels `requestAnimationFrame` plus an
+ * `isMounted` flag to avoid drawing after unmount.
+ */
+
 import { useEffect, useRef } from 'react';
 
+/** Fixed number of animated "user" nodes drawn on the canvas. */
 const NODE_COUNT = 8;
 
+/**
+ * Builds the initial node list with staggered positions and slight velocity variation
+ * so the graph does not look perfectly synchronized.
+ *
+ * @param {number} width - Canvas width in pixels
+ * @param {number} height - Canvas height in pixels
+ * @returns {Array<{x: number, y: number, vx: number, vy: number, radius: number}>}
+ */
 const createNodes = (width, height) => {
   return Array.from({ length: NODE_COUNT }, (_, index) => ({
     x: 80 + ((index * 70) % (width - 120)),
@@ -12,6 +48,10 @@ const createNodes = (width, height) => {
   }));
 };
 
+/**
+ * Undirected edges as pairs of node indices. Drawn every frame between current positions
+ * so connections follow the moving nodes without storing edge geometry separately.
+ */
 const CONNECTIONS = [
   [0, 1],
   [1, 2],
@@ -24,10 +64,18 @@ const CONNECTIONS = [
   [2, 6]
 ];
 
+/**
+ * Renders an animated social-network graph on a 2D canvas.
+ *
+ * @returns {JSX.Element}
+ */
 const NetworkCanvas = () => {
   const canvasRef = useRef(null);
 
-  // Animate moving nodes and connection lines on HTML Canvas
+  /**
+   * Starts the animation loop once on mount and tears it down on unmount.
+   * Node positions are mutated in place each frame for performance (no React setState).
+   */
   useEffect(() => {
     const canvas = canvasRef.current;
 
@@ -40,8 +88,12 @@ const NetworkCanvas = () => {
     const height = canvas.height;
     const nodes = createNodes(width, height);
     let animationId = null;
+    // Prevents scheduling/drawing after cleanup if a frame was already queued
     let isMounted = true;
 
+    /**
+     * One animation frame: clear, update physics, draw edges, draw nodes, schedule next frame.
+     */
     const draw = () => {
       if (!isMounted) {
         return;
@@ -57,6 +109,7 @@ const NetworkCanvas = () => {
       ctx.textAlign = 'center';
       ctx.fillText('Social Network', width / 2, 28);
 
+      // Integrate velocity, then reverse on hitting padded bounds (title area at top)
       nodes.forEach((node) => {
         node.x += node.vx;
         node.y += node.vy;

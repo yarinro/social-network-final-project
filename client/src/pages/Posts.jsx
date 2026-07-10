@@ -1,3 +1,30 @@
+/**
+ * @file Posts.jsx
+ * @description Main feed / "My Posts" page for creating and browsing posts across groups.
+ *
+ * Purpose:
+ *   Authenticated users create posts into a group they belong to, browse a filterable feed of
+ *   posts from their groups (`GET /posts/feed`), or switch to only their own posts (`GET /posts/my`).
+ *
+ * Responsibilities:
+ *   - Dual view: Feed (filterable) vs My Posts (author's posts, no filter form)
+ *   - Load member groups for the create-post group dropdown
+ *   - Create posts (`POST /posts`); prepend to feed list when on the Feed tab
+ *   - Apply/clear filters via PostFilterForm + buildPostFilterParams (includeGroup on feed)
+ *   - Edit/delete posts and sync PostCard updates into local state
+ *
+ * Data flow:
+ *   AuthContext.user → useEffect loads fetchPosts + loadMemberGroups in parallel
+ *   → view ('feed' | 'my') selects endpoint inside fetchPosts
+ *   → filters → buildPostFilterParams(..., { includeGroup: true }) on feed only
+ *   → posts / memberGroups state drive the list and create form
+ *
+ * Key concepts for defense:
+ *   - Feed vs My: `view` toggles endpoint; filters UI and handlers are feed-only
+ *   - PostFilterForm: controlled filters state; Apply/Clear call fetchPosts with params
+ *   - buildPostFilterParams: shared util turns filter object into axios query params
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -6,10 +33,17 @@ import PostCard from '../components/PostCard';
 import PostFilterForm from '../components/PostFilterForm';
 import { buildPostFilterParams, emptyPostFilters } from '../utils/postFilters';
 
+/**
+ * Posts (Feed) page: create posts, switch Feed / My Posts, filter the feed, edit/delete.
+ *
+ * @returns {JSX.Element}
+ */
 const Posts = () => {
   const { user, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState([]);
+  /** Groups where the current user is a member — options for the create-post select */
   const [memberGroups, setMemberGroups] = useState([]);
+  /** @type {'feed' | 'my'} Feed = filtered group feed; my = author's posts only */
   const [view, setView] = useState('feed');
   const [filters, setFilters] = useState(emptyPostFilters);
   const [content, setContent] = useState('');
@@ -28,8 +62,18 @@ const Posts = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  /**
+   * Load posts for the active tab.
+   * - `view === 'my'` → `GET /posts/my` (no filter params)
+   * - otherwise → `GET /posts/feed` with `buildPostFilterParams(activeFilters, { includeGroup: true })`
+   *   so the feed can filter by group name as well as content/author/date fields.
+   *
+   * @param {object} [activeFilters=emptyPostFilters]
+   * @returns {Promise<number>} Count of posts set into state
+   */
   const fetchPosts = useCallback(
     async (activeFilters = emptyPostFilters) => {
+      // My Posts tab: author-scoped list, filters are not applied
       if (view === 'my') {
         const response = await api.get('/posts/my');
         const postList = Array.isArray(response.data) ? response.data : [];
@@ -37,6 +81,7 @@ const Posts = () => {
         return postList.length;
       }
 
+      // Feed tab: server-side filters via shared buildPostFilterParams helper
       const response = await api.get('/posts/feed', {
         params: buildPostFilterParams(activeFilters, { includeGroup: true })
       });
@@ -47,6 +92,10 @@ const Posts = () => {
     [view]
   );
 
+  /**
+   * Load all groups, keep those where the user is a member, and default `groupId`
+   * for the create form if none is selected yet.
+   */
   const loadMemberGroups = useCallback(async () => {
     const groupsResponse = await api.get('/groups');
     const groups = (groupsResponse.data || []).filter((group) =>
@@ -59,7 +108,10 @@ const Posts = () => {
     setGroupId((current) => current || (groups.length > 0 ? groups[0]._id : ''));
   }, [user]);
 
-  // Load feed or my posts when the page opens or the tab changes
+  /**
+   * Load feed or my posts when the page opens or the tab changes.
+   * Also refreshes member groups for the create-post dropdown.
+   */
   useEffect(() => {
     if (authLoading) {
       return;
@@ -85,6 +137,12 @@ const Posts = () => {
     loadPageData();
   }, [user, authLoading, view, fetchPosts, loadMemberGroups]);
 
+  /**
+   * Create-post submit: `POST /posts` with selected group.
+   * On the Feed tab, the new post is prepended locally; My Posts relies on a later refetch via tab change.
+   *
+   * @param {React.FormEvent} event
+   */
   const handleCreatePost = async (event) => {
     event.preventDefault();
     setError('');
@@ -99,6 +157,7 @@ const Posts = () => {
         videoUrl: videoUrl.trim()
       });
 
+      // Optimistic list update only on Feed (new post belongs in the group feed)
       if (view === 'feed') {
         setPosts((prevPosts) => [response.data, ...prevPosts]);
       }
@@ -114,6 +173,10 @@ const Posts = () => {
     }
   };
 
+  /**
+   * Apply PostFilterForm filters — only meaningful on the Feed tab.
+   * Calls fetchPosts(filters) so buildPostFilterParams runs with current form values.
+   */
   const handleApplyFilters = async () => {
     if (view !== 'feed') {
       return;
@@ -133,6 +196,9 @@ const Posts = () => {
     }
   };
 
+  /**
+   * Clear filter fields and reload the unfiltered feed (no-op on My Posts beyond resetting state).
+   */
   const handleClearFilters = async () => {
     const clearedFilters = { ...emptyPostFilters };
     setFilters(clearedFilters);
@@ -154,6 +220,11 @@ const Posts = () => {
     }
   };
 
+  /**
+   * Enter PostCard edit mode for a post.
+   *
+   * @param {object} post
+   */
   const startEdit = (post) => {
     setEditingPostId(post._id);
     setEditContent(post.content);
@@ -163,6 +234,9 @@ const Posts = () => {
     setMessage('');
   };
 
+  /**
+   * Exit PostCard edit mode and clear edit fields.
+   */
   const cancelEdit = () => {
     setEditingPostId(null);
     setEditContent('');
@@ -170,6 +244,12 @@ const Posts = () => {
     setEditVideoUrl('');
   };
 
+  /**
+   * Save post edits via `PATCH /posts/:postId` and replace the item in `posts`.
+   *
+   * @param {React.FormEvent} event
+   * @param {string} postId
+   */
   const handleUpdatePost = async (event, postId) => {
     event.preventDefault();
     setError('');
@@ -195,6 +275,11 @@ const Posts = () => {
     }
   };
 
+  /**
+   * Sync a post updated inside PostCard (likes, comments, etc.) into local state.
+   *
+   * @param {object} updatedPost
+   */
   const handlePostUpdated = (updatedPost) => {
     setPosts((prevPosts) =>
       prevPosts.map((post) =>
@@ -203,6 +288,11 @@ const Posts = () => {
     );
   };
 
+  /**
+   * Delete a post after confirm and remove it from the list.
+   *
+   * @param {string} postId
+   */
   const handleDeletePost = async (postId) => {
     const confirmed = window.confirm('Are you sure you want to delete this post?');
 
@@ -312,6 +402,7 @@ const Posts = () => {
       <section className="posts-section">
         <div className="posts-toolbar">
           <h2>{view === 'my' ? 'My Posts' : 'Feed'}</h2>
+          {/* Feed vs My Posts — changing view re-runs the load effect via fetchPosts deps */}
           <div className="posts-view-buttons">
             <button
               type="button"
@@ -330,6 +421,7 @@ const Posts = () => {
           </div>
         </div>
 
+        {/* Filters only on Feed; My Posts uses /posts/my without query params */}
         {view === 'feed' && (
           <PostFilterForm
             filters={filters}

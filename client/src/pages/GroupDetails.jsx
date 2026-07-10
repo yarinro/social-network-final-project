@@ -1,3 +1,30 @@
+/**
+ * @file GroupDetails.jsx
+ * @description Single-group detail page: membership overview, in-group post creation, and filtered post list.
+ *
+ * Purpose:
+ *   Route `/groups/:id` shows one group's metadata (name, privacy, manager, members) and the posts
+ *   belonging to that group. Members, the manager, and site admins can create posts; anyone who can
+ *   load the group can filter and view its posts (subject to server authorization).
+ *
+ * Responsibilities:
+ *   - Load group by URL param (`GET /groups/:id`) after auth is ready
+ *   - Load group posts (`GET /groups/:id/posts`) with optional filter query params
+ *   - Create posts scoped to this group (`POST /posts` with `group: id`)
+ *   - Edit/delete posts via PostCard callbacks (`PATCH` / `DELETE /posts/:id`)
+ *   - Gate the create-post form with `canCreatePost` (manager, admin, or member)
+ *
+ * Data flow:
+ *   useParams().id + AuthContext.user → load group → setGroup
+ *   → second effect calls fetchGroupPosts (buildPostFilterParams) → posts state
+ *   → PostFilterForm / create form / PostCard mutate or refresh posts
+ *
+ * Key concepts for defense:
+ *   - Membership: create-post allowed for manager, admin, or listed member only
+ *   - Filters: shared PostFilterForm + buildPostFilterParams (same helpers as the Feed page)
+ *   - Create post always sends this route's `id` as the group; list refresh reuses current filters
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/api';
@@ -8,11 +35,17 @@ import PostCard from '../components/PostCard';
 import PostFilterForm from '../components/PostFilterForm';
 import { buildPostFilterParams, emptyPostFilters } from '../utils/postFilters';
 
+/**
+ * Group details page: one group header plus its posts (create, filter, edit, delete).
+ *
+ * @returns {JSX.Element}
+ */
 const GroupDetails = () => {
   const { id } = useParams();
   const { user, loading: authLoading } = useAuth();
   const [group, setGroup] = useState(null);
   const [posts, setPosts] = useState([]);
+  /** Shared filter shape from emptyPostFilters / PostFilterForm */
   const [filters, setFilters] = useState(emptyPostFilters);
   const [loadingGroup, setLoadingGroup] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -30,6 +63,13 @@ const GroupDetails = () => {
   const [videoUrl, setVideoUrl] = useState('');
   const [creating, setCreating] = useState(false);
 
+  /**
+   * Fetch posts for this group, converting UI filter state into API query params.
+   * Uses `buildPostFilterParams` so Group Details and Feed share the same filter contract.
+   *
+   * @param {object} [activeFilters=emptyPostFilters] - Current or cleared filter values
+   * @returns {Promise<number>} Number of posts returned
+   */
   const fetchGroupPosts = useCallback(async (activeFilters = emptyPostFilters) => {
     const response = await api.get(`/groups/${id}/posts`, {
       params: buildPostFilterParams(activeFilters)
@@ -39,7 +79,10 @@ const GroupDetails = () => {
     return postList.length;
   }, [id]);
 
-  // Load group details from the URL id
+  /**
+   * Load group details from the URL id once auth has finished and a user is present.
+   * Resets `group` to null while loading so a previous group's UI does not flash.
+   */
   useEffect(() => {
     if (authLoading || !user) {
       return;
@@ -63,7 +106,10 @@ const GroupDetails = () => {
     loadGroup();
   }, [user, authLoading, id]);
 
-  // Load posts after the group is loaded
+  /**
+   * After the group document is available, load its posts (default empty filters).
+   * Depends on `group` so posts only load when membership/access for this id succeeded.
+   */
   useEffect(() => {
     if (authLoading || !user || !group) {
       return;
@@ -84,6 +130,9 @@ const GroupDetails = () => {
     loadPosts();
   }, [user, authLoading, group, fetchGroupPosts]);
 
+  /**
+   * Apply PostFilterForm values: re-fetch with current `filters` and report match count.
+   */
   const handleApplyFilters = async () => {
     setError('');
     setMessage('');
@@ -99,6 +148,9 @@ const GroupDetails = () => {
     }
   };
 
+  /**
+   * Reset filters to emptyPostFilters and reload the unfiltered group post list.
+   */
   const handleClearFilters = async () => {
     const clearedFilters = { ...emptyPostFilters };
     setFilters(clearedFilters);
@@ -115,6 +167,11 @@ const GroupDetails = () => {
     }
   };
 
+  /**
+   * Begin editing a post inside PostCard (populate edit fields from the post).
+   *
+   * @param {object} post
+   */
   const startEdit = (post) => {
     setEditingPostId(post._id);
     setEditContent(post.content || '');
@@ -124,6 +181,9 @@ const GroupDetails = () => {
     setMessage('');
   };
 
+  /**
+   * Cancel inline post edit and clear edit field state.
+   */
   const cancelEdit = () => {
     setEditingPostId(null);
     setEditContent('');
@@ -131,6 +191,12 @@ const GroupDetails = () => {
     setEditVideoUrl('');
   };
 
+  /**
+   * Persist post edits: `PATCH /posts/:postId`, then replace that item in local `posts`.
+   *
+   * @param {React.FormEvent} event
+   * @param {string} postId
+   */
   const handleUpdatePost = async (event, postId) => {
     event.preventDefault();
     setError('');
@@ -156,6 +222,11 @@ const GroupDetails = () => {
     }
   };
 
+  /**
+   * Delete a post after confirm: `DELETE /posts/:postId` and remove from local list.
+   *
+   * @param {string} postId
+   */
   const handleDeletePost = async (postId) => {
     const confirmed = window.confirm('Are you sure you want to delete this post?');
 
@@ -178,6 +249,11 @@ const GroupDetails = () => {
     }
   };
 
+  /**
+   * Callback for PostCard side-effects (e.g. like/comment updates) that return a full post.
+   *
+   * @param {object} updatedPost
+   */
   const handlePostUpdated = (updatedPost) => {
     setPosts((prevPosts) =>
       prevPosts.map((post) =>
@@ -186,6 +262,12 @@ const GroupDetails = () => {
     );
   };
 
+  /**
+   * Permission helper: who may create a post in this group.
+   * Allowed if the user is the group manager, a site admin, or listed in `group.members`.
+   *
+   * @returns {boolean}
+   */
   const canCreatePost = () => {
     if (!user || !group) {
       return false;
@@ -194,15 +276,23 @@ const GroupDetails = () => {
     const userId = user._id.toString();
     const managerId = (group.manager?._id || group.manager)?.toString();
 
+    // Manager or admin always may post
     if (managerId === userId || user.role === 'admin') {
       return true;
     }
 
+    // Regular members of this group may post
     return (group.members || []).some(
       (member) => (member._id || member).toString() === userId
     );
   };
 
+  /**
+   * Create a post in this group (`POST /posts` with `group: id`), then refresh the list
+   * using the currently applied filters so the new post appears if it matches.
+   *
+   * @param {React.FormEvent} event
+   */
   const handleCreatePost = async (event) => {
     event.preventDefault();
     setError('');
@@ -210,6 +300,7 @@ const GroupDetails = () => {
     setCreating(true);
 
     try {
+      // Always bind the new post to the group from the route param
       await api.post('/posts', {
         group: id,
         content: content.trim(),
@@ -274,6 +365,7 @@ const GroupDetails = () => {
       {error && <p className="error-message">{error}</p>}
       {message && <p className="success-message">{message}</p>}
 
+      {/* Membership / metadata panel */}
       <section className="group-details-card">
         <div className="group-details-header">
           <h2>{group.name || 'Unnamed group'}</h2>
@@ -324,6 +416,7 @@ const GroupDetails = () => {
       <section className="posts-section">
         <h2>Group Posts</h2>
 
+        {/* Create form only if canCreatePost (manager / admin / member) */}
         {canCreatePost() && (
           <div className="group-create-post-card">
             <h3>Create Post in this Group</h3>
@@ -366,6 +459,7 @@ const GroupDetails = () => {
           </div>
         )}
 
+        {/* Shared filter UI; params built via buildPostFilterParams in fetchGroupPosts */}
         <PostFilterForm
           filters={filters}
           onChange={setFilters}

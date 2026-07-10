@@ -1,14 +1,30 @@
+/**
+ * @file Home.jsx
+ * @description Landing page for the social network. Greets the authenticated
+ * user (or prompts guests to log in) and showcases the D3/Canvas network
+ * visualization plus a short project overview for the oral defense.
+ * @module pages/Home
+ */
+
 import { useAuth } from '../context/AuthContext';
 import NetworkCanvas from '../components/NetworkCanvas';
 import UserBadge from '../components/UserBadge';
 
+/**
+ * Renders the home landing view with a personalized welcome, network canvas,
+ * and static "About This Project" copy describing the MERN stack.
+ *
+ * @returns {JSX.Element} Home page layout
+ */
 const Home = () => {
+  // AuthContext: current session user (null when logged out)
   const { user } = useAuth();
 
   return (
     <div className="page">
       <h1>Home</h1>
 
+      {/* Conditional welcome: badge for logged-in users, guest prompt otherwise */}
       {user ? (
         <p className="home-welcome">
           Welcome, <UserBadge user={user} />!

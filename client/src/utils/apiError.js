@@ -1,3 +1,31 @@
+/**
+ * File: apiError.js
+ *
+ * Purpose:
+ * Small helper that turns Axios error objects into short, user-facing messages
+ * for alerts and inline error UI across pages.
+ *
+ * Main responsibilities:
+ * - Prefer the backend `message` field when present.
+ * - Map common HTTP statuses (401, 403, 404, 400, 5xx) to readable defaults.
+ * - Detect network failures when there is no response object.
+ *
+ * Data flow:
+ * - Used by pages/components inside catch blocks after api.get/post/etc.
+ * - Does not call the network itself; only formats an existing error.
+ *
+ * Important concepts:
+ * Axios error shape (response.status, response.data.message), graceful
+ * fallbacks, and keeping error copy consistent across the UI.
+ */
+
+/**
+ * Converts an Axios (or similar) error into a display string.
+ *
+ * @param {object|null|undefined} err - Error thrown by an API call.
+ * @param {string} [fallback='Something went wrong.'] - Used when nothing else fits.
+ * @returns {string} Message safe to show in the UI.
+ */
 export const getApiErrorMessage = (err, fallback = 'Something went wrong.') => {
   if (!err) {
     return fallback;
@@ -26,6 +54,7 @@ export const getApiErrorMessage = (err, fallback = 'Something went wrong.') => {
     return message || 'Server error. Please try again later.';
   }
 
+  // No HTTP response usually means the server is down or CORS/network failed.
   if (!err.response) {
     return 'Network error. Please check your connection.';
   }

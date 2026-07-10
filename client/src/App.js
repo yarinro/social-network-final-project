@@ -1,3 +1,26 @@
+/**
+ * File: App.js
+ *
+ * Purpose:
+ * Top-level React component that defines client-side routing and the shared
+ * chrome (navbar + main content area) for the social-network SPA.
+ *
+ * Main responsibilities:
+ * - Enable BrowserRouter so URLs map to page components without full reloads.
+ * - Wrap the UI in ErrorBoundary so render crashes show a fallback instead of a blank screen.
+ * - Declare public routes (home, login, register, groups list, posts) and
+ *   protected routes (group details, users, profile, messages, statistics).
+ * - Catch unknown paths with the NotFound page (`path="*"`).
+ *
+ * Data flow:
+ * - Does not fetch data itself; each page loads its own API data.
+ * - ProtectedRoute reads AuthContext to allow or redirect unauthenticated users.
+ *
+ * Important concepts:
+ * React Router v6 Routes/Route, nested ProtectedRoute wrappers, layout
+ * composition (Navbar outside Routes so it stays visible), and SPA navigation.
+ */
+
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -16,6 +39,11 @@ import Statistics from './pages/Statistics';
 import NotFound from './pages/NotFound';
 import './App.css';
 
+/**
+ * Renders the application shell: router, error boundary, navbar, and route table.
+ *
+ * @returns {JSX.Element}
+ */
 function App() {
   return (
     <BrowserRouter>
@@ -23,10 +51,12 @@ function App() {
         <Navbar />
         <main className="main-content">
           <Routes>
+            {/* Public pages — no JWT required */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/groups" element={<Groups />} />
+            {/* Group details need auth for membership/permission-aware content */}
             <Route
               path="/groups/:id"
               element={
@@ -76,6 +106,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Fallback for any unmatched URL */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

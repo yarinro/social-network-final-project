@@ -1,3 +1,41 @@
+/**
+ * @file PostFilterForm.jsx
+ * @description Controlled filter/search form for narrowing and sorting the posts list.
+ *
+ * Purpose:
+ * Collect filter criteria (text, author, optional group, date range, media flags, sort
+ * order) and hand them to the parent via callbacks. This component does not call the API;
+ * the parent applies filters when the user submits or clears.
+ *
+ * Responsibilities:
+ * - Bind each input to a field on the `filters` object from the parent
+ * - Emit immutable updates (`{ ...filters, [field]: value }`) on every change
+ * - Prevent default form submit and call `onSubmit` / `onClear`
+ * - Optionally show a Group field when `showGroupField` is true (e.g. global feed vs
+ *   already-scoped group page)
+ *
+ * Data flow:
+ * Props in: `filters` (controlled values), `onChange`, `onSubmit`, `onClear`,
+ * `showGroupField`, `submitting`. No local state — every keystroke updates the parent.
+ *
+ * React concepts demonstrated:
+ * Fully controlled inputs, curried change handlers (`handleFieldChange(field)`),
+ * conditional field rendering, and lifting state so one filter object drives both UI
+ * and the eventual API query on the parent page.
+ */
+
+/**
+ * Search and filter form for posts. Parent owns filter state and applies it on submit.
+ *
+ * @param {Object} props
+ * @param {Object} props.filters - Current filter values (text, author, group, dates, etc.)
+ * @param {Function} props.onChange - Receives the next full filters object
+ * @param {Function} props.onSubmit - Apply filters (parent fetches/filters)
+ * @param {Function} props.onClear - Reset filters in the parent
+ * @param {boolean} [props.showGroupField=false] - Whether to show the group name field
+ * @param {boolean} [props.submitting=false] - Disables Apply while a request is in flight
+ * @returns {JSX.Element}
+ */
 const PostFilterForm = ({
   filters,
   onChange,
@@ -6,6 +44,13 @@ const PostFilterForm = ({
   showGroupField = false,
   submitting = false
 }) => {
+  /**
+   * Returns an onChange handler for one filter field that merges the new value into
+   * a shallow copy of `filters` so React sees a new object reference.
+   *
+   * @param {string} field - Key on the filters object to update
+   * @returns {Function} Event handler for the corresponding input/select
+   */
   const handleFieldChange = (field) => (event) => {
     onChange({ ...filters, [field]: event.target.value });
   };
@@ -16,6 +61,7 @@ const PostFilterForm = ({
       <form
         className="post-filter-form"
         onSubmit={(event) => {
+          // Controlled form: block native navigation and let the parent run the query
           event.preventDefault();
           onSubmit();
         }}
@@ -41,6 +87,7 @@ const PostFilterForm = ({
             />
           </label>
 
+          {/* Hidden on pages already scoped to one group (avoids redundant filtering) */}
           {showGroupField && (
             <label>
               Group
