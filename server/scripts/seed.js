@@ -1,3 +1,37 @@
+/**
+ * @fileoverview Database seeder for the MERN social-network demo.
+ *
+ * Purpose:
+ *   Rebuilds a predictable MongoDB dataset so demos, screenshots, and the oral
+ *   defense always show the same users, friendships, groups, posts, and chats.
+ *   Run from the server package (e.g. `npm run seed`) against a non-production
+ *   database only — the script refuses to run when NODE_ENV is production.
+ *
+ * Responsibilities:
+ *   1. Connect to MongoDB using MONGO_URI from server/.env.
+ *   2. Wipe Messages, Posts, Groups, and Users in dependency-safe order.
+ *   3. Insert demo users (shared bcrypt-hashed password), then wire friendships.
+ *   4. Insert groups (public/private, managers, members, pending join requests).
+ *   5. Keep User.groups in sync with approved Group.members only.
+ *   6. Insert posts and direct messages with fixed UTC dates for statistics charts.
+ *   7. Assert referential integrity (symmetrical friends, manager∈members, etc.).
+ *   8. Disconnect from MongoDB in a finally block so the process can exit cleanly.
+ *
+ * Connections / data model touchpoints:
+ *   - Models: User, Group, Post, Message (Mongoose schemas under server/src/models).
+ *   - Cross-document refs: User.friends, User.groups ↔ Group.members / manager /
+ *     pendingMembers; Post.author / Post.group; Message.from / Message.to.
+ *   - Env: dotenv loads MONGO_URI; dns.setServers helps resolve Atlas hostnames
+ *     on networks where the OS DNS resolver is unreliable.
+ *
+ * Concepts illustrated for defense:
+ *   - Password hashing (bcrypt) instead of storing plaintext.
+ *   - Insert order: create documents before other collections store their ObjectIds.
+ *   - Bidirectional friendship and dual-sided group membership (Group + User).
+ *   - Pending members are join requests, not approved members.
+ *   - Explicit createdAt values so admin statistics span known months.
+ */
+
 require('dotenv').config();
 
 const dns = require('dns');
@@ -10,21 +44,48 @@ const Group = require('../src/models/Group');
 const Post = require('../src/models/Post');
 const Message = require('../src/models/Message');
 
+// Prefer public DNS resolvers so MongoDB Atlas SRV/hostname lookups succeed when
+// the machine's default DNS is flaky or blocks cloud provider records.
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 const DEMO_PASSWORD = 'Demo123!';
+// Public sample MP4s (W3C / MDN) used as Post.videoUrl values so the UI can demo
+// video posts without hosting media in this repository.
 const DEMO_VIDEO_URLS = [
   'https://media.w3.org/2010/05/sintel/trailer.mp4',
   'https://media.w3.org/2010/05/bunny/trailer.mp4',
   'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
 ];
+/** @type {string} First demo trailer — reused across several seeded posts. */
 const VIDEO_1 = DEMO_VIDEO_URLS[0];
+/** @type {string} Second demo trailer — reused across several seeded posts. */
 const VIDEO_2 = DEMO_VIDEO_URLS[1];
+/** @type {string} Third demo trailer — reused across several seeded posts. */
 const VIDEO_3 = DEMO_VIDEO_URLS[2];
 
+/**
+ * Builds a fixed UTC Date for seed timestamps.
+ * Explicit dates (not "now") keep statistics charts and demos reproducible
+ * across re-seeds and machines.
+ *
+ * @param {number} year - Full year (e.g. 2026).
+ * @param {number} month - Calendar month 1–12 (converted to Date's 0-based month).
+ * @param {number} day - Day of month.
+ * @param {number} [hour=12] - Hour in UTC.
+ * @param {number} [minute=0] - Minute in UTC.
+ * @returns {Date} UTC timestamp for createdAt / updatedAt fields.
+ */
 const date = (year, month, day, hour = 12, minute = 0) =>
   new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
 
+/**
+ * Deduplicates an array of MongoDB ObjectIds (or id-like values) by string key.
+ * Used when building friends, members, likes, and User.groups so accidental
+ * duplicate refs from seed definitions do not land in the database.
+ *
+ * @param {Array<{ toString(): string }>} ids - Id values to uniquify.
+ * @returns {Array<{ toString(): string }>} First occurrence of each id, in order.
+ */
 const uniqueIds = (ids) => {
   const seen = new Set();
   const result = [];
@@ -40,12 +101,25 @@ const uniqueIds = (ids) => {
   return result;
 };
 
+/**
+ * Throws if a seed invariant fails so a bad dataset never silently ships.
+ *
+ * @param {*} condition - Truthy value means the check passed.
+ * @param {string} message - Error text shown when seeding aborts.
+ * @returns {void}
+ */
 const assert = (condition, message) => {
   if (!condition) {
     throw new Error(message);
   }
 };
 
+/**
+ * Main seeding pipeline: clear → users → friendships → groups → sync User.groups
+ * → posts → messages → integrity checks → summary logs.
+ *
+ * @returns {Promise<void>}
+ */
 const seed = async () => {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('Refusing to seed: NODE_ENV is production.');
@@ -60,13 +134,19 @@ const seed = async () => {
   await mongoose.connect(mongoUri);
   console.log('Connected to MongoDB');
 
-  // Clear in dependency-safe order
+  // Clear in dependency-safe order: Messages and Posts reference Users/Groups, so
+  // delete children first. Then Groups (which reference Users), then Users last.
+  // Deleting Users while Messages/Posts still pointed at them would leave orphans
+  // or fail if the DB enforced stricter referential rules.
   await Message.deleteMany({});
   await Post.deleteMany({});
   await Group.deleteMany({});
   await User.deleteMany({});
   console.log('Cleared existing Messages, Posts, Groups, and Users');
 
+  // Hash once and reuse: the User model stores passwordHash, never plaintext.
+  // bcrypt with cost 10 matches typical app registration so demo logins work
+  // through the same auth path as real users.
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   const userDefs = [
@@ -162,6 +242,8 @@ const seed = async () => {
     }
   ];
 
+  // Create users first so later steps can store real ObjectIds on friends, groups,
+  // posts, and messages. Relationships cannot be written until these docs exist.
   const createdUsers = await User.insertMany(
     userDefs.map((user) => ({
       username: user.username,
@@ -183,7 +265,8 @@ const seed = async () => {
     users[def.key] = createdUsers[index];
   });
 
-  // Symmetrical friendships
+  // Symmetrical friendships: if A lists B, B must list A. The app treats friendship
+  // as undirected, so the seeder writes both directions for every pair.
   const friendPairs = [
     ['alex', 'maya'],
     ['alex', 'lina'],
@@ -217,7 +300,9 @@ const seed = async () => {
     )
   );
 
-  // Groups with varied privacy, managers, and member counts
+  // Groups with varied privacy, managers, and member counts.
+  // Managers appear in members[] as well — a manager is always an approved member.
+  // pendingMembers hold join requests only (e.g. Nina on private groups), not access.
   const groupDefs = [
     {
       key: 'web',
@@ -299,7 +384,9 @@ const seed = async () => {
     groups[def.key] = createdGroups[index];
   });
 
-  // Sync User.groups with approved membership only
+  // Sync User.groups with approved membership only: each Group.members entry must
+  // appear on that user's groups[], and pendingMembers must not. The app reads both
+  // sides; keeping them aligned avoids "member in group but not on profile" bugs.
   const userGroupMap = {};
   Object.keys(users).forEach((key) => {
     userGroupMap[key] = [];
@@ -319,7 +406,8 @@ const seed = async () => {
     )
   );
 
-  // Posts across groups and months (Sep 2025 – Mar 2026)
+  // Posts across groups and months (Sep 2025 – Mar 2026).
+  // Fixed createdAt values feed admin statistics (posts-per-month / per-group charts).
   const postDefs = [
     // Web Developers (many posts for chart contrast)
     {
@@ -722,7 +810,7 @@ const seed = async () => {
     }))
   );
 
-  // Messages across several conversations
+  // Messages across several conversations (from/to use the same user ObjectIds).
   const messageDefs = [
     // Alex <-> Maya
     {
@@ -913,7 +1001,8 @@ const seed = async () => {
     }))
   );
 
-  // Reload and verify relationships
+  // Reload and verify relationships — referential-integrity checks catch seed bugs
+  // (broken ObjectIds, one-sided friends, pending treated as members) before demo.
   const allUsers = await User.find();
   const allGroups = await Group.find();
   const allPosts = await Post.find();
@@ -929,7 +1018,7 @@ const seed = async () => {
   assert(publicGroups.length === 4, 'Expected 4 public groups');
   assert(privateGroups.length === 2, 'Expected 2 private groups');
 
-  // Managers must be members
+  // Managers must be members; pending users must not also sit in members[].
   allGroups.forEach((group) => {
     const managerInMembers = group.members.some(
       (memberId) => memberId.toString() === group.manager.toString()
@@ -944,7 +1033,7 @@ const seed = async () => {
     });
   });
 
-  // Friendships must be symmetrical
+  // Friendships must be symmetrical (A→B implies B→A).
   const userById = new Map(allUsers.map((user) => [user._id.toString(), user]));
   allUsers.forEach((user) => {
     user.friends.forEach((friendId) => {
@@ -957,7 +1046,7 @@ const seed = async () => {
     });
   });
 
-  // User.groups must match approved membership
+  // User.groups must match approved membership (not pending).
   allUsers.forEach((user) => {
     const expectedGroupIds = allGroups
       .filter((group) =>
@@ -973,7 +1062,7 @@ const seed = async () => {
     );
   });
 
-  // Nina pending on Startup Founders, not a member
+  // Nina pending on Startup Founders, not a member — demos private-group join flow.
   const startup = allGroups.find((group) => group.name === 'Startup Founders');
   const nina = allUsers.find((user) => user.username === 'nina_pending');
   assert(startup, 'Startup Founders group missing');
@@ -1001,7 +1090,7 @@ const seed = async () => {
     'Web Developers manager should be Maya'
   );
 
-  // Every post author belongs to the post group
+  // Every post author belongs to the post group; monthSet proves chart date spread.
   const postsPerGroup = {};
   const monthSet = new Set();
 
@@ -1066,6 +1155,11 @@ const seed = async () => {
   console.log('  Post: Alex React post in Web Developers (image, likes, date 2026-03-10)');
 };
 
+/**
+ * CLI entry wrapper: runs seed(), reports failures, and always closes MongoDB.
+ *
+ * @returns {Promise<void>}
+ */
 const run = async () => {
   try {
     await seed();
@@ -1073,6 +1167,8 @@ const run = async () => {
     console.error('\nSeed failed:', error.message);
     process.exitCode = 1;
   } finally {
+    // Always disconnect: an open mongoose pool keeps the Node process alive even
+    // after success or failure, so the seed script would hang instead of exiting.
     await mongoose.disconnect();
     console.log('Disconnected from MongoDB');
   }
